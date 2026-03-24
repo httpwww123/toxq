@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToxiQuery — Pharmacological Intelligence Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:ital,wght@0,300;0,400;0,500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface2: #f4f2ed;
+    --surface3: #eceae4;
+    --border: #dddad2;
+    --border-bright: #ccc9c0;
+    --accent: #1a5c8f;
+    --accent-light: #e8f2fa;
+    --accent2: #2d7d4f;
+    --accent2-light: #e6f5ed;
+    --accent3: #c0392b;
+    --accent3-light: #fdf0ef;
+    --accent4: #b7770d;
+    --accent4-light: #fef7e8;
+    --text: #1c1a17;
+    --text2: #5a5650;
+    --text3: #9a9690;
+    --shadow: rgba(28,26,23,0.06);
+    --shadow-md: rgba(28,26,23,0.10);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 0% 0%, rgba(26,92,143,0.04) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(45,125,79,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1180px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    padding: 24px 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), #2a7cbf);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(26,92,143,0.25);
+  }
+
+  .logo-text {
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-badge {
+    margin-left: auto;
+    background: var(--accent-light);
+    border: 1px solid rgba(26,92,143,0.2);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* MAIN LAYOUT */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* INPUT PANEL */
+  .input-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    position: sticky;
+    top: 20px;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .panel-title {
+    font-family: 'Lora', serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 7px;
+    margin-top: 16px;
+    font-weight: 500;
+  }
+
+  label:first-of-type { margin-top: 0; }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 11px 13px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.65;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    outline: none;
+  }
+
+  textarea:focus, input[type="text"]:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px rgba(26,92,143,0.08);
+  }
+
+  textarea { min-height: 120px; }
+
+  .tag-hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 5px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .dose-hint {
+    font-size: 11px;
+    color: var(--accent4);
+    margin-top: 5px;
+    font-family: 'DM Mono', monospace;
+    background: var(--accent4-light);
+    border: 1px solid rgba(183,119,13,0.15);
+    border-radius: 6px;
+    padding: 5px 9px;
+  }
+
+  /* OPTIONAL SECTION */
+  .optional-toggle {
+    margin-top: 18px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+
+  .toggle-header {
+    padding: 11px 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .toggle-header:hover { background: var(--surface3); }
+
+  .toggle-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .optional-badge {
+    background: var(--accent4-light);
+    color: var(--accent4);
+    border: 1px solid rgba(183,119,13,0.2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+
+  .toggle-arrow {
+    color: var(--text3);
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+
+  .toggle-arrow.open { transform: rotate(180deg); }
+
+  .optional-body {
+    padding: 0 16px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+  }
+
+  .optional-body.open {
+    max-height: 450px;
+    padding: 4px 16px 16px;
+  }
+
+  .optional-body label { margin-top: 12px; }
+  .optional-body label:first-child { margin-top: 0; }
+
+  /* Drug class chips */
+  .drug-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .chip {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text2);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+  /* API KEY FIELD */
+  .api-key-row {
+    margin-top: 18px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 12px 14px;
+  }
+
+  .api-key-row label {
+    margin-top: 0;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .api-key-row input[type="password"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 11px 13px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    margin-top: 0;
+  }
+
+  .api-key-row input[type="password"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(26,92,143,0.08);
+  }
+
+  .api-key-hint {
+    font-size: 10.5px;
+    color: var(--text3);
+    margin-top: 6px;
+    font-family: 'DM Mono', monospace;
+    line-height: 1.6;
+  }
+
+  .api-key-hint a { color: var(--accent); text-decoration: none; }
+  .api-key-hint a:hover { text-decoration: underline; }
+
+  /* RUN BUTTON */
+  .run-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), #2879be);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    letter-spacing: 0.03em;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 2px 10px rgba(26,92,143,0.3);
+  }
+
+  .run-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 18px rgba(26,92,143,0.35);
+  }
+
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .run-btn .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  .run-btn.loading .spinner { display: block; }
+  .run-btn.loading .btn-text { opacity: 0.8; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RESULTS PANEL */
+  .results-panel { min-height: 300px; }
+
+  .results-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 420px;
+    color: var(--text3);
+    text-align: center;
+    gap: 14px;
+  }
+
+  .results-empty .big-icon { font-size: 52px; opacity: 0.25; }
+
+  .results-empty p {
+    font-family: 'Lora', serif;
+    font-size: 14px;
+    max-width: 300px;
+    line-height: 1.8;
+    color: var(--text3);
+    font-style: italic;
+  }
+
+  /* INGREDIENT CARD */
+  .ingredient-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: 0 1px 6px var(--shadow);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    background: linear-gradient(to right, #f9f8f5, var(--surface));
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ing-number {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .ing-name {
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  .ing-dose-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 9px;
+    border-radius: 5px;
+    background: var(--accent4-light);
+    color: var(--accent4);
+    border: 1px solid rgba(183,119,13,0.2);
+    letter-spacing: 0.04em;
+  }
+
+  .ing-status {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .ing-status.ok { background: var(--accent2-light); color: var(--accent2); border: 1px solid rgba(45,125,79,0.2); }
+  .ing-status.warn { background: var(--accent3-light); color: var(--accent3); border: 1px solid rgba(192,57,43,0.2); }
+
+  /* SECTIONS INSIDE CARD */
+  .card-sections { padding: 4px 0; }
+
+  .section-block {
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .section-block:last-child { border-bottom: none; }
+
+  .section-trigger {
+    padding: 13px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .section-trigger:hover { background: var(--surface2); }
+
+  .section-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .dose-icon { background: var(--accent-light); }
+  .contra-icon { background: var(--accent3-light); }
+  .interact-icon { background: var(--accent4-light); }
+  .ae-icon { background: #f0eef9; }
+  .disease-icon { background: var(--accent2-light); }
+  .drug-icon { background: var(--accent4-light); }
+
+  .section-title {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .section-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .section-arrow {
+    color: var(--text3);
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+
+  .section-arrow.open { transform: rotate(180deg); }
+
+  .section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+  }
+
+  .section-content.open { max-height: 2500px; }
+
+  .section-inner {
+    padding: 4px 20px 18px 58px;
+  }
+
+  .data-row { margin-bottom: 14px; }
+  .data-row:last-child { margin-bottom: 0; }
+
+  .data-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .data-value {
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.65;
+  }
+
+  .data-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    color: var(--accent);
+    text-decoration: none;
+    margin: 4px 4px 0 0;
+    transition: background 0.15s, border-color 0.15s;
+    word-break: break-all;
+  }
+
+  .data-link:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+  }
+
+  .links-group { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+  .warn-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent3-light);
+    border: 1px solid rgba(192,57,43,0.2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--accent3);
+    margin: 3px 3px 0 0;
+  }
+
+  .interact-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent4-light);
+    border: 1px solid rgba(183,119,13,0.2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--accent4);
+    margin: 3px 3px 0 0;
+  }
+
+  .ae-tag {
+    background: #f0eef9;
+    border: 1px solid rgba(108,92,186,0.2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #5b4fcf;
+    display: inline-block;
+    margin: 3px 3px 0 0;
+  }
+
+  .disease-block {
+    background: linear-gradient(135deg, var(--accent2-light), var(--accent-light));
+    border: 1px solid rgba(45,125,79,0.18);
+    border-radius: 9px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .disease-block-title {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--accent2);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .pk-pd-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .pk-pd-cell {
+    background: var(--surface);
+    border-radius: 7px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+
+  .pk-pd-cell-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+
+  .pk-pd-cell-value { font-size: 12.5px; color: var(--text2); line-height: 1.6; }
+
+  .evidence-level {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+
+  .ev-high { background: var(--accent2-light); color: var(--accent2); }
+  .ev-moderate { background: var(--accent4-light); color: var(--accent4); }
+  .ev-low { background: var(--accent3-light); color: var(--accent3); }
+
+  /* STATUS BAR */
+  .status-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 11px 16px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.5s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(26,92,143,0.35); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(26,92,143,0); }
+  }
+
+  .status-bar.done .status-dot { background: var(--accent2); animation: none; box-shadow: none; }
+  .status-bar.error .status-dot { background: var(--accent3); animation: none; box-shadow: none; }
+
+  /* STREAM LOG */
+  .stream-log {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 22px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.9;
+    max-height: 110px;
+    overflow-y: auto;
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+
+  .stream-log .log-line { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .log-ts { color: var(--text3); margin-right: 8px; }
+  .log-ok { color: var(--accent2); }
+  .log-warn { color: var(--accent4); }
+  .log-err { color: var(--accent3); }
+
+  /* DISCLAIMER */
+  .disclaimer {
+    background: var(--accent4-light);
+    border: 1px solid rgba(183,119,13,0.18);
+    border-radius: 9px;
+    padding: 12px 16px;
+    font-size: 11.5px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-top: 24px;
+  }
+
+  .disclaimer strong { color: var(--accent4); }
+
+  /* ── DOSE SUMMARY SECTION ── */
+  .dose-summary-panel {
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(26,92,143,0.1);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .dose-summary-header {
+    padding: 16px 22px;
+    background: linear-gradient(135deg, var(--accent-light), #edf4fb);
+    border-bottom: 1px solid rgba(26,92,143,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dose-summary-header h2 {
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    flex: 1;
+  }
+
+  .dose-summary-header p {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  .download-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(26,92,143,0.25);
+    flex-shrink: 0;
+  }
+
+  .download-btn:hover { background: #154d7a; box-shadow: 0 4px 14px rgba(26,92,143,0.35); transform: translateY(-1px); }
+  .download-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .dose-summary-body { padding: 20px 22px; }
+
+  .dose-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .dose-summary-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text3);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .dose-summary-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .dose-summary-table tr:last-child td { border-bottom: none; }
+  .dose-summary-table tr:hover td { background: var(--surface2); }
+
+  .dose-summary-table td:first-child {
+    font-weight: 600;
+    font-family: 'Lora', serif;
+    color: var(--accent);
+    white-space: nowrap;
+    min-width: 130px;
+  }
+
+  .safe-badge { display: inline-block; background: var(--accent2-light); color: var(--accent2); border: 1px solid rgba(45,125,79,0.25); border-radius: 5px; padding: 2px 8px; font-family: 'DM Mono', monospace; font-size: 10px; margin-right: 5px; }
+  .caution-badge { display: inline-block; background: var(--accent4-light); color: var(--accent4); border: 1px solid rgba(183,119,13,0.25); border-radius: 5px; padding: 2px 8px; font-family: 'DM Mono', monospace; font-size: 10px; margin-right: 5px; }
+  .unsafe-badge { display: inline-block; background: var(--accent3-light); color: var(--accent3); border: 1px solid rgba(192,57,43,0.25); border-radius: 5px; padding: 2px 8px; font-family: 'DM Mono', monospace; font-size: 10px; margin-right: 5px; }
+
+  .summary-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    text-decoration: none;
+    background: var(--accent-light);
+    border: 1px solid rgba(26,92,143,0.15);
+    border-radius: 4px;
+    padding: 2px 7px;
+    margin: 2px 2px 0 0;
+    transition: background 0.15s;
+  }
+
+  .summary-link:hover { background: rgba(26,92,143,0.1); }
+
+  /* FINAL ANALYSIS PANEL */
+  .final-analysis-panel {
+    background: var(--surface);
+    border: 2px solid var(--accent2);
+    border-radius: 14px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(45,125,79,0.08);
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .final-analysis-header {
+    padding: 16px 22px;
+    background: linear-gradient(135deg, var(--accent2-light), #ecf7f1);
+    border-bottom: 1px solid rgba(45,125,79,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .final-analysis-header h2 {
+    font-family: 'Lora', serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent2);
+    flex: 1;
+  }
+
+  .final-analysis-body {
+    padding: 20px 22px;
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+
+  .final-analysis-body p { margin-bottom: 12px; }
+  .final-analysis-body p:last-child { margin-bottom: 0; }
+
+  .final-verdict {
+    background: linear-gradient(135deg, var(--accent2-light), var(--accent-light));
+    border: 1px solid rgba(45,125,79,0.2);
+    border-radius: 9px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-family: 'Lora', serif;
+    font-size: 14px;
+    font-style: italic;
+    color: var(--text);
+    line-height: 1.75;
+  }
+
+  .verdict-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent2);
+    font-style: normal;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  @media (max-width: 820px) {
+    .main-layout { grid-template-columns: 1fr; }
+    .input-panel { position: static; }
+    .pk-pd-grid { grid-template-columns: 1fr; }
+    .dose-summary-table { font-size: 12px; }
+  }
+
+  /* PDF PRINTOUT STYLES */
+  @media print {
+    body { background: white; }
+    .input-panel, .run-btn, .download-btn, .stream-log, .status-bar { display: none !important; }
+    .main-layout { grid-template-columns: 1fr; }
+    .ingredient-card, .dose-summary-panel, .final-analysis-panel { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+    .section-content { max-height: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo-icon">⚗️</div>
+    <div>
+      <div class="logo-text">Toxi<span>Query</span></div>
+      <div class="logo-sub">Pharmacological Intelligence Agent</div>
+    </div>
+    <div class="header-badge">v6.0 · AI-Powered</div>
+  </header>
+
+  <div class="main-layout">
+    <!-- INPUT PANEL -->
+    <div class="input-panel">
+      <div class="panel-title">
+        <div class="panel-title-dot"></div>
+        Query Configuration
+      </div>
+
+      <label for="ingredients">Ingredients / Compounds</label>
+      <textarea id="ingredients" placeholder="One per line. Optionally add dose:&#10;Metformin 500mg&#10;Paracetamol 1000mg&#10;Atorvastatin 40mg&#10;Sildenafil&#10;Ibuprofen 400mg"></textarea>
+      <div class="dose-hint">💡 Add dose after ingredient name (e.g. "Metformin 500mg") for dose-specific safety analysis</div>
+
+      <!-- OPTIONAL SECTION -->
+      <div class="optional-toggle" id="optToggle">
+        <div class="toggle-header" onclick="toggleOptional()">
+          <div class="toggle-label">
+            Advanced Options
+            <span class="optional-badge">OPTIONAL</span>
+          </div>
+          <span class="toggle-arrow" id="toggleArrow">▼</span>
+        </div>
+        <div class="optional-body" id="optBody">
+          <label>Disease / Condition</label>
+          <input type="text" id="disease" placeholder="e.g. Type 2 Diabetes, Heart Failure, CKD...">
+
+          <label>Check Against Drug Class / Mainline Drugs</label>
+          <input type="text" id="drugInput" placeholder="e.g. ACE inhibitors, Warfarin, NSAIDs...">
+          <div class="drug-chips" id="drugChips">
+            <div class="chip" onclick="toggleChip(this, 'ACE Inhibitors')">ACE Inhibitors</div>
+            <div class="chip" onclick="toggleChip(this, 'Beta Blockers')">Beta Blockers</div>
+            <div class="chip" onclick="toggleChip(this, 'NSAIDs')">NSAIDs</div>
+            <div class="chip" onclick="toggleChip(this, 'Statins')">Statins</div>
+            <div class="chip" onclick="toggleChip(this, 'Warfarin')">Warfarin</div>
+            <div class="chip" onclick="toggleChip(this, 'SSRIs')">SSRIs</div>
+            <div class="chip" onclick="toggleChip(this, 'Insulin')">Insulin</div>
+            <div class="chip" onclick="toggleChip(this, 'Diuretics')">Diuretics</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API KEY -->
+      <div class="api-key-row">
+        <label for="apiKey">🔑 Anthropic API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+        <div class="api-key-hint">
+          Your key is used only in your browser and never stored or sent anywhere else.<br>
+          Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
+        </div>
+      </div>
+
+      <button class="run-btn" id="runBtn" onclick="runQuery()">
+        <div class="spinner"></div>
+        <span class="btn-text">▶ Run Toxicology Query</span>
+      </button>
+    </div>
+
+    <!-- RESULTS PANEL -->
+    <div class="results-panel" id="resultsPanel">
+      <div class="results-empty" id="emptyState">
+        <div class="big-icon">🧬</div>
+        <p>Enter your ingredients on the left and run a query to fetch comprehensive toxicological data with dose-specific safety analysis.</p>
+      </div>
+
+      <div id="statusBar" style="display:none"></div>
+      <div id="streamLog" style="display:none" class="stream-log"></div>
+
+      <!-- Dose summary + Final analysis rendered here -->
+      <div id="summarySection"></div>
+
+      <!-- Per-ingredient detailed cards -->
+      <div id="resultsContainer"></div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <strong>⚠ Clinical Disclaimer:</strong> Data generated by this tool is AI-sourced for research/educational purposes only. Always verify against authoritative pharmacological databases (DrugBank, PubChem, FDA label, etc.). Not a substitute for professional clinical judgment. Links are suggested references — verify independently.
+  </div>
+</div>
+
+<script>
+const SELECTED_CHIPS = new Set();
+let LAST_RESULTS = null;
+let LAST_META = null;
+
+function toggleOptional() {
+  const body = document.getElementById('optBody');
+  const arrow = document.getElementById('toggleArrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+function toggleChip(el, val) {
+  el.classList.toggle('active');
+  if (SELECTED_CHIPS.has(val)) SELECTED_CHIPS.delete(val);
+  else SELECTED_CHIPS.add(val);
+  updateDrugInput();
+}
+
+function updateDrugInput() {
+  const inp = document.getElementById('drugInput');
+  const existing = inp.value.split(',').map(s=>s.trim()).filter(s=>s&&![...SELECTED_CHIPS].includes(s));
+  const combined = [...existing, ...SELECTED_CHIPS].filter(Boolean);
+  inp.value = combined.join(', ');
+}
+
+function log(msg, type='') {
+  const logEl = document.getElementById('streamLog');
+  logEl.style.display = 'block';
+  const ts = new Date().toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${type?'log-'+type:''}">${msg}</span>`;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setStatus(msg, type='loading') {
+  const bar = document.getElementById('statusBar');
+  bar.style.display = 'flex';
+  bar.className = `status-bar ${type==='done'?'done':type==='error'?'error':''}`;
+  bar.innerHTML = `<div class="status-dot"></div><span>${msg}</span>`;
+}
+
+// Parse "Metformin 500mg" -> {name: "Metformin", dose: "500mg"}
+function parseIngredientLine(line) {
+  const dosePattern = /(\d+\s*(?:mg|g|mcg|µg|ml|L|IU|units?|mEq|mmol|%|drops?|tablets?|caps?|capsules?|puffs?|patches?|units\/kg|mg\/kg)[^\s,]*)/i;
+  const match = line.match(dosePattern);
+  if (match) {
+    const dose = match[1].trim();
+    const name = line.replace(dose, '').trim().replace(/\s+/, ' ').trim();
+    return { name: name || line.trim(), dose };
+  }
+  return { name: line.trim(), dose: null };
+}
+
+async function runQuery() {
+  const rawIngredients = document.getElementById('ingredients').value.trim();
+  if (!rawIngredients) { alert('Please enter at least one ingredient.'); return; }
+
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+    alert('Please enter a valid Anthropic API key (starts with sk-ant-...).');
+    document.getElementById('apiKey').focus();
+    return;
+  }
+
+  const lines = rawIngredients.split('\n').map(s=>s.trim()).filter(Boolean);
+  const parsedIngredients = lines.map(parseIngredientLine);
+  const hasDoses = parsedIngredients.some(p => p.dose);
+  const disease = document.getElementById('disease').value.trim();
+  const drugClasses = document.getElementById('drugInput').value.trim();
+
+  // UI reset
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContainer').innerHTML = '';
+  document.getElementById('summarySection').innerHTML = '';
+  document.getElementById('streamLog').innerHTML = '';
+  document.getElementById('streamLog').style.display = 'none';
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.querySelector('.btn-text').textContent = 'Fetching Data…';
+
+  setStatus('Initializing toxicology agent…');
+  log('Agent started', 'ok');
+  log(`Ingredients: ${parsedIngredients.map(p=>p.dose?`${p.name} (${p.dose})`:p.name).join(', ')}`);
+  if (hasDoses) log('Dose-specific safety analysis enabled', 'ok');
+  if (disease) log(`Disease context: ${disease}`, 'ok');
+  if (drugClasses) log(`Drug class check: ${drugClasses}`, 'ok');
+
+  try {
+    log('Connecting to Anthropic API…');
+    setStatus('Querying AI pharmacological knowledge base…');
+
+    // ── Two-pass strategy ────────────────────────────────────────────────────
+    // Pass 1: collect data for each ingredient individually (no web_search),
+    //         using a compact prompt so we never hit max_tokens.
+    // Pass 2: if doses were supplied, call again for dose_summary + final_analysis.
+    // This guarantees we always get complete, parseable JSON.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const ingredientPrompt = buildIngredientPrompt(parsedIngredients, disease, drugClasses);
+    log('Fetching ingredient profiles…');
+    setStatus('Analyzing ingredient profiles…');
+
+    const ingredientsData = await callWithContinuation(ingredientPrompt, 'ingredients');
+
+    let doseSummary = null;
+    let finalAnalysis = null;
+
+    if (hasDoses) {
+      log('Fetching dose-specific safety analysis…', 'ok');
+      setStatus('Running dose safety analysis…');
+      const dosePrompt = buildDosePrompt(parsedIngredients, ingredientsData, disease, drugClasses);
+      const doseData = await callWithContinuation(dosePrompt, 'dose');
+      doseSummary   = doseData.dose_summary   || null;
+      finalAnalysis = doseData.final_analysis || null;
+    }
+
+    if (!ingredientsData.length) {
+      throw new Error('The model returned an empty ingredients list. Please try again.');
+    }
+
+    log(`Rendering ${ingredientsData.length} ingredient(s)…`, 'ok');
+    if (hasDoses) log('Rendering dose-safety summary…', 'ok');
+    setStatus(`Complete — ${ingredientsData.length} ingredient(s) analyzed`, 'done');
+
+    renderSummarySection(ingredientsData, doseSummary, finalAnalysis, parsedIngredients, hasDoses);
+    renderResults(ingredientsData, disease, drugClasses, parsedIngredients);
+
+  } catch(err) {
+    log('Error: ' + err.message, 'err');
+    setStatus('Error: ' + err.message, 'error');
+    document.getElementById('resultsContainer').innerHTML = `
+      <div style="padding:20px; color:var(--accent3); font-family:'DM Mono',monospace; font-size:12px; background:var(--surface); border:1px solid rgba(192,57,43,0.2); border-radius:12px; box-shadow:0 1px 4px var(--shadow);">
+        ⚠ ${err.message}
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.querySelector('.btn-text').textContent = '▶ Run Toxicology Query';
+  }
+}
+
+// ── Single API call with tool-use loop + max_tokens continuation ─────────────
+async function callAPI(messages) {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) throw new Error('Please enter your Anthropic API key before running a query.');
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 16000,
+      messages
+    })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message || 'API Error');
+  return data;
+}
+
+// Runs the agentic loop: handles tool_use turns AND max_tokens continuation
+// mode = 'ingredients' | 'dose'
+async function callWithContinuation(prompt, mode) {
+  const messages = [{ role: 'user', content: prompt }];
+  let accText = '';
+  let round = 0;
+  const MAX_ROUNDS = 12;
+
+  while (round < MAX_ROUNDS) {
+    round++;
+    log(`API call (round ${round})…`);
+
+    const data = await callAPI(messages);
+    const stopReason = data.stop_reason;
+    const content = data.content || [];
+
+    // Accumulate any text from this turn
+    const turnText = content.filter(b => b.type === 'text').map(b => b.text).join('');
+    accText += turnText;
+
+    if (stopReason === 'end_turn') {
+      log('Response complete.', 'ok');
+      break;
+    }
+
+    if (stopReason === 'max_tokens') {
+      // Response was cut — ask the model to continue from where it stopped
+      log('Response truncated, requesting continuation…', 'warn');
+      setStatus(`Response truncated — continuing (round ${round + 1})…`);
+
+      // Append what we got so far as assistant turn, then ask to continue
+      messages.push({ role: 'assistant', content: content.length ? content : [{ type: 'text', text: accText }] });
+      messages.push({ role: 'user', content: 'Continue the JSON exactly from where you stopped. Do not repeat anything already written. Output only the continuation of the JSON.' });
+      continue;
+    }
+
+    // Unexpected stop
+    log(`Unexpected stop_reason: ${stopReason}`, 'warn');
+    break;
+  }
+
+  if (!accText.trim()) {
+    throw new Error('No response received from the model. Please try again.');
+  }
+
+  return parseAndRepair(accText, mode);
+}
+
+// ── JSON extraction + repair ─────────────────────────────────────────────────
+function parseAndRepair(rawText, mode) {
+  // Strip markdown fences
+  let text = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+  // Try clean parse first
+  try {
+    const obj = tryParseJSON(text);
+    if (mode === 'ingredients') return normaliseIngredients(obj);
+    return obj;
+  } catch(_) {}
+
+  // Repair: truncated JSON — try to close all open structures
+  try {
+    const repaired = repairJSON(text);
+    log('Repaired truncated JSON.', 'warn');
+    const obj = JSON.parse(repaired);
+    if (mode === 'ingredients') return normaliseIngredients(obj);
+    return obj;
+  } catch(e) {
+    log('Repair failed: ' + e.message, 'err');
+    throw new Error('Could not parse model response. Please try again with fewer ingredients.');
+  }
+}
+
+function tryParseJSON(text) {
+  // Try as object
+  const os = text.indexOf('{');
+  const oe = text.lastIndexOf('}') + 1;
+  if (os !== -1 && oe > os) {
+    try { return JSON.parse(text.substring(os, oe)); } catch(_) {}
+  }
+  // Try as array
+  const as = text.indexOf('[');
+  const ae = text.lastIndexOf(']') + 1;
+  if (as !== -1 && ae > as) {
+    return JSON.parse(text.substring(as, ae));
+  }
+  throw new Error('No JSON found');
+}
+
+function repairJSON(text) {
+  // Find start of outermost structure
+  const firstBrace  = text.indexOf('{');
+  const firstBracket = text.indexOf('[');
+  let start = -1, startChar = '', endChar = '';
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    start = firstBrace; startChar = '{'; endChar = '}';
+  } else if (firstBracket !== -1) {
+    start = firstBracket; startChar = '['; endChar = ']';
+  }
+  if (start === -1) throw new Error('No JSON structure found');
+
+  let fragment = text.substring(start);
+
+  // Remove trailing incomplete string/value that caused the cut
+  // Walk from the end and strip back to the last complete key-value pair
+  fragment = stripIncompleteTrail(fragment);
+
+  // Count open braces/brackets and close them
+  let depth = 0;
+  let inStr = false, escape = false;
+  for (let i = 0; i < fragment.length; i++) {
+    const c = fragment[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\' && inStr) { escape = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (!inStr) {
+      if (c === '{' || c === '[') depth++;
+      if (c === '}' || c === ']') depth--;
+    }
+  }
+
+  // Append closers
+  let closers = '';
+  // Walk open structure stack backwards
+  const stack = [];
+  inStr = false; escape = false;
+  for (let i = 0; i < fragment.length; i++) {
+    const c = fragment[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\' && inStr) { escape = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (!inStr) {
+      if (c === '{') stack.push('}');
+      else if (c === '[') stack.push(']');
+      else if (c === '}' || c === ']') stack.pop();
+    }
+  }
+  while (stack.length) closers += stack.pop();
+
+  return fragment + (closers ? closers : '');
+}
+
+function stripIncompleteTrail(text) {
+  // Remove trailing comma then whitespace, remove incomplete last property
+  text = text.trimEnd();
+  // If it ends with a comma, remove it
+  if (text.endsWith(',')) text = text.slice(0, -1).trimEnd();
+  // If it ends with an incomplete string (odd number of unescaped quotes in last token), cut back
+  const lastNewline = Math.max(text.lastIndexOf('\n'), text.lastIndexOf(','));
+  if (lastNewline > 0) {
+    const tail = text.substring(lastNewline);
+    // Count unescaped quotes in tail
+    let qCount = 0;
+    for (let i = 0; i < tail.length; i++) {
+      if (tail[i] === '"' && (i === 0 || tail[i-1] !== '\\')) qCount++;
+    }
+    // Odd number means an open string — strip back to last comma/newline
+    if (qCount % 2 !== 0) {
+      text = text.substring(0, lastNewline).trimEnd();
+      if (text.endsWith(',')) text = text.slice(0, -1).trimEnd();
+    }
+  }
+  return text;
+}
+
+function normaliseIngredients(obj) {
+  let arr = Array.isArray(obj) ? obj : (obj.ingredients || []);
+  return arr.map(({ _placeholder, ...rest }) => rest);
+}
+
+// ── Compact ingredient-profile prompt ────────────────────────────────────────
+function buildIngredientPrompt(parsedIngredients, disease, drugClasses) {
+  const ingredientList = parsedIngredients.map(p => p.dose ? `${p.name} (dose: ${p.dose})` : p.name).join(', ');
+  const drugClassList  = drugClasses ? drugClasses.split(',').map(s=>s.trim()).filter(Boolean) : [];
+
+  return `You are a clinical pharmacologist. Return ONLY a valid JSON array (no markdown, no text outside JSON) containing one object per ingredient for ALL ingredients listed.
+
+INGREDIENTS: ${ingredientList}
+${disease ? `DISEASE CONTEXT: ${disease}` : ''}
+${drugClassList.length ? `CHECK INTERACTIONS WITH: ${drugClassList.join(', ')}` : ''}
+
+Each array element must have exactly these fields:
+{
+  "name": "ingredient name",
+  "given_dose": "dose if provided else null",
+  "summary": "2-sentence clinical summary",
+  "dose": {
+    "standard": "standard dose with route/frequency",
+    "max": "maximum safe dose",
+    "renal_adjustment": "renal impairment adjustment",
+    "hepatic_adjustment": "hepatic impairment adjustment",
+    "links": [{"label":"FDA Label","url":"https://www.accessdata.fda.gov/..."},{"label":"DrugBank","url":"https://go.drugbank.com/drugs/..."}]
+  },
+  "contraindications": {
+    "absolute": ["..."],
+    "relative": ["..."],
+    "links": [{"label":"Drugs.com","url":"https://www.drugs.com/..."}]
+  },
+  "interactions": {
+    "major":    [{"drug":"name","mechanism":"...","clinical_effect":"..."}],
+    "moderate": [{"drug":"name","mechanism":"...","clinical_effect":"..."}],
+    "minor":    ["drug1","drug2"],
+    "links": [{"label":"Drugs.com Interactions","url":"https://www.drugs.com/drug-interactions/..."}]
+  },
+  "adverse_effects": {
+    "common":  ["..."],
+    "serious": ["..."],
+    "rare":    ["..."],
+    "links": [{"label":"FDA FAERS","url":"https://www.fda.gov/safety/..."}]
+  }${disease ? `,
+  "disease_implications": {
+    "disease": "${disease.replace(/"/g,"'")}",
+    "role": "role/indication/contraindication",
+    "pk_changes": "PK changes",
+    "pd_changes": "PD changes",
+    "evidence_level": "High|Moderate|Low",
+    "clinical_notes": "key considerations",
+    "research_summary": "evidence summary",
+    "links": [{"label":"PubMed","url":"https://pubmed.ncbi.nlm.nih.gov/?term=..."}]
+  }` : ''}${drugClassList.length ? `,
+  "drug_class_interactions": [${drugClassList.map(dc => `
+    {"class_or_drug":"${dc.replace(/"/g,"'")}","interaction_type":"PK|PD|Both","severity":"Major|Moderate|Minor","mechanism":"...","clinical_consequence":"...","management":"...","links":[{"label":"Reference","url":"https://www.drugs.com/..."}]}`).join(',')}
+  ]` : ''}
+}
+
+Rules:
+- Output ONLY a JSON array starting with [ and ending with ]
+- Include ALL ${parsedIngredients.length} ingredient(s) — do not skip any
+- Use real URLs from FDA/DrugBank/PubMed/Drugs.com/MedlinePlus
+- Be clinically precise and concise to stay within token limits`;
+}
+
+// ── Compact dose-analysis prompt ──────────────────────────────────────────────
+function buildDosePrompt(parsedIngredients, ingredientsData, disease, drugClasses) {
+  const dosed = parsedIngredients.filter(p => p.dose);
+  const summaryLines = dosed.map(p => {
+    const ing = ingredientsData.find(i => i.name.toLowerCase().includes(p.name.toLowerCase())) || {};
+    return `${p.name} (given: ${p.dose}, standard: ${ing.dose?.standard || 'unknown'}, max: ${ing.dose?.max || 'unknown'})`;
+  }).join('\n');
+
+  return `You are a clinical pharmacologist. Given the following ingredients and their specified doses, return ONLY a valid JSON object (no markdown, no text outside JSON).
+
+DOSED INGREDIENTS:
+${summaryLines}
+${disease ? `DISEASE CONTEXT: ${disease}` : ''}
+${drugClasses ? `CO-MEDICATIONS: ${drugClasses}` : ''}
+
+Return exactly:
+{
+  "dose_summary": [
+    {
+      "name": "ingredient name",
+      "given_dose": "dose as specified",
+      "dose_assessment": "Safe|Caution|Exceeds Maximum|Below Therapeutic|Not Established",
+      "standard_range": "standard therapeutic range",
+      "max_safe_dose": "maximum safe dose",
+      "dose_rationale": "1-2 sentence explanation",
+      "contraindications_at_dose": "contraindications relevant at this dose",
+      "interactions_at_dose": "interactions triggered/worsened at this dose",
+      "adverse_effects_at_dose": "adverse effects at this dose level",
+      "dose_links": [{"label":"Dosing Reference","url":"https://www.drugs.com/dosage/..."},{"label":"FDA Label","url":"https://www.accessdata.fda.gov/..."}]
+    }
+  ],
+  "final_analysis": {
+    "overall_verdict": "Safe|Use with Caution|Review Required|Not Recommended",
+    "summary_text": "3-4 sentence overall clinical assessment at these doses",
+    "key_concerns": ["concern 1","concern 2"],
+    "recommendations": ["recommendation 1","recommendation 2"],
+    "combined_interaction_note": "notable interactions between the ingredients at these doses"
+  }
+}
+
+Output ONLY the JSON object. Be concise and clinically accurate.`;
+}
+
+function renderSummarySection(ingredients, doseSummary, finalAnalysis, parsedIngredients, hasDoses) {
+  const sec = document.getElementById('summarySection');
+  sec.innerHTML = '';
+
+  if (!hasDoses || !doseSummary || !doseSummary.length) return;
+
+  // Dose Summary Table
+  const dsPanel = document.createElement('div');
+  dsPanel.className = 'dose-summary-panel';
+  dsPanel.id = 'doseSummaryPanel';
+
+  const dsHeader = document.createElement('div');
+  dsHeader.className = 'dose-summary-header';
+  dsHeader.innerHTML = `
+    <div style="flex:1">
+      <h2>📋 Dose-Specific Safety Summary</h2>
+      <p>Analysis of specified doses against standard therapeutic ranges and safety thresholds</p>
+    </div>
+    <button class="download-btn" id="downloadBtn" onclick="downloadPDF()">
+      ⬇ Download PDF Report
+    </button>
+  `;
+  dsPanel.appendChild(dsHeader);
+
+  const dsBody = document.createElement('div');
+  dsBody.className = 'dose-summary-body';
+
+  let tableHtml = `
+    <table class="dose-summary-table">
+      <thead>
+        <tr>
+          <th>Ingredient</th>
+          <th>Given Dose</th>
+          <th>Assessment</th>
+          <th>Contraindications</th>
+          <th>Interactions</th>
+          <th>Adverse Effects at Dose</th>
+          <th>References</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  doseSummary.forEach(d => {
+    const badgeClass = d.dose_assessment && d.dose_assessment.toLowerCase().includes('safe') && !d.dose_assessment.toLowerCase().includes('caution')
+      ? 'safe-badge'
+      : d.dose_assessment && (d.dose_assessment.toLowerCase().includes('caution') || d.dose_assessment.toLowerCase().includes('below'))
+        ? 'caution-badge' : 'unsafe-badge';
+
+    const linksHtml = (d.dose_links || []).map(l =>
+      `<a class="summary-link" href="${escHtml(l.url||'#')}" target="_blank" rel="noopener">🔗 ${escHtml(l.label||'Ref')}</a>`
+    ).join('');
+
+    tableHtml += `
+      <tr>
+        <td>${escHtml(d.name)}</td>
+        <td><strong>${escHtml(d.given_dose||'—')}</strong><br><span style="font-size:11px;color:var(--text3);">Std: ${escHtml(d.standard_range||'—')}</span></td>
+        <td>
+          <span class="${badgeClass}">${escHtml(d.dose_assessment||'—')}</span>
+          <div style="font-size:11.5px;color:var(--text2);margin-top:5px;line-height:1.55;">${escHtml(d.dose_rationale||'')}</div>
+        </td>
+        <td style="font-size:12.5px;color:var(--text2);">${escHtml(d.contraindications_at_dose||'None noted at this dose')}</td>
+        <td style="font-size:12.5px;color:var(--text2);">${escHtml(d.interactions_at_dose||'None specifically dose-dependent')}</td>
+        <td style="font-size:12.5px;color:var(--text2);">${escHtml(d.adverse_effects_at_dose||'Standard profile applies')}</td>
+        <td>${linksHtml || '<span style="font-size:11px;color:var(--text3);">—</span>'}</td>
+      </tr>`;
+  });
+
+  tableHtml += '</tbody></table>';
+  dsBody.innerHTML = tableHtml;
+  dsPanel.appendChild(dsBody);
+  sec.appendChild(dsPanel);
+
+  // Final Analysis Panel
+  if (finalAnalysis) {
+    const faPanel = document.createElement('div');
+    faPanel.className = 'final-analysis-panel';
+    faPanel.id = 'finalAnalysisPanel';
+
+    const verdictColor = finalAnalysis.overall_verdict && finalAnalysis.overall_verdict.toLowerCase().includes('safe') && !finalAnalysis.overall_verdict.toLowerCase().includes('caution')
+      ? 'var(--accent2)' : finalAnalysis.overall_verdict && finalAnalysis.overall_verdict.toLowerCase().includes('caution')
+        ? 'var(--accent4)' : 'var(--accent3)';
+
+    faPanel.innerHTML = `
+      <div class="final-analysis-header">
+        <div style="flex:1">
+          <h2>🔬 Final Clinical Analysis</h2>
+          <p style="font-size:12px;color:var(--text2);margin-top:2px;">Overall safety assessment based on all ingredients and specified doses</p>
+        </div>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;padding:5px 14px;border-radius:7px;background:var(--surface);border:2px solid ${verdictColor};color:${verdictColor};font-weight:700;letter-spacing:0.04em;">
+          ${escHtml(finalAnalysis.overall_verdict||'Review Required')}
+        </span>
+      </div>
+      <div class="final-analysis-body">
+        <p>${escHtml(finalAnalysis.summary_text||'')}</p>
+
+        ${finalAnalysis.combined_interaction_note ? `
+        <div style="background:var(--accent4-light);border:1px solid rgba(183,119,13,0.2);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent4);margin-bottom:6px;">Combined Interaction Note</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.65;">${escHtml(finalAnalysis.combined_interaction_note)}</div>
+        </div>` : ''}
+
+        ${finalAnalysis.key_concerns && finalAnalysis.key_concerns.length ? `
+        <div style="margin-bottom:14px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:8px;">Key Clinical Concerns</div>
+          ${finalAnalysis.key_concerns.map(c=>`
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;">
+              <span style="color:var(--accent3);font-size:13px;flex-shrink:0;margin-top:1px;">▸</span>
+              <span style="font-size:13px;color:var(--text);line-height:1.6;">${escHtml(c)}</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+        ${finalAnalysis.recommendations && finalAnalysis.recommendations.length ? `
+        <div class="final-verdict">
+          <span class="verdict-label">Clinical Recommendations</span>
+          ${finalAnalysis.recommendations.map((r,i)=>`<div style="display:flex;gap:9px;margin-bottom:6px;"><span style="color:var(--accent2);font-weight:700;font-style:normal;">${i+1}.</span><span>${escHtml(r)}</span></div>`).join('')}
+        </div>` : ''}
+      </div>`;
+    sec.appendChild(faPanel);
+  }
+}
+
+function buildPrintHTML() {
+  // Collect ingredient cards text with all sections expanded
+  const cards = document.querySelectorAll('.ingredient-card');
+  let cardsHTML = '';
+  cards.forEach(card => {
+    // Clone and expand all accordion sections
+    const clone = card.cloneNode(true);
+    clone.querySelectorAll('.section-content').forEach(sc => {
+      sc.style.cssText = 'max-height:none!important;overflow:visible!important;display:block!important;';
+    });
+    clone.querySelectorAll('.section-arrow').forEach(a => a.remove());
+    clone.querySelectorAll('.section-trigger').forEach(t => t.style.cursor = 'default');
+    cardsHTML += clone.outerHTML;
+  });
+
+  // Dose summary table
+  const dsPanel = document.getElementById('doseSummaryPanel');
+  let dsSectionHTML = '';
+  if (dsPanel) {
+    const clone = dsPanel.cloneNode(true);
+    const dlBtn = clone.querySelector('.download-btn');
+    if (dlBtn) dlBtn.remove();
+    dsSectionHTML = clone.outerHTML;
+  }
+
+  // Final analysis
+  const faPanel = document.getElementById('finalAnalysisPanel');
+  let faSectionHTML = faPanel ? faPanel.outerHTML : '';
+
+  const ts = new Date().toLocaleString('en-IN', {dateStyle:'long', timeStyle:'short'});
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ToxiQuery Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#fff; --surface:#fff; --surface2:#f7f6f2; --surface3:#eceae4;
+    --border:#dddad2; --border-bright:#ccc9c0;
+    --accent:#1a5c8f; --accent-light:#e8f2fa;
+    --accent2:#2d7d4f; --accent2-light:#e6f5ed;
+    --accent3:#c0392b; --accent3-light:#fdf0ef;
+    --accent4:#b7770d; --accent4-light:#fef7e8;
+    --text:#1c1a17; --text2:#5a5650; --text3:#9a9690;
+    --shadow:rgba(28,26,23,0.06);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'DM Sans',sans-serif; font-size:13px; color:#1c1a17; background:#fff; padding:28px 32px; }
+  
+  .pdf-header { border-bottom:2.5px solid #1a5c8f; padding-bottom:14px; margin-bottom:24px; }
+  .pdf-title { font-family:'Lora',serif; font-size:22px; font-weight:700; color:#1a5c8f; }
+  .pdf-meta { font-size:11px; color:#9a9690; margin-top:4px; font-family:'DM Mono',monospace; }
+
+  .dose-summary-panel { background:#fff; border:1.5px solid #1a5c8f; border-radius:10px; margin-bottom:22px; overflow:hidden; page-break-inside:avoid; }
+  .dose-summary-header { padding:14px 20px; background:#e8f2fa; border-bottom:1px solid rgba(26,92,143,0.15); display:flex; align-items:center; gap:10px; }
+  .dose-summary-header h2 { font-family:'Lora',serif; font-weight:700; font-size:15px; color:#1a5c8f; flex:1; }
+  .dose-summary-header p { font-size:11px; color:#5a5650; margin-top:2px; }
+  .download-btn { display:none !important; }
+  .dose-summary-body { padding:16px 20px; overflow-x:auto; }
+  .dose-summary-table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .dose-summary-table th { font-family:'DM Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.07em; color:#9a9690; text-align:left; padding:7px 10px; border-bottom:2px solid #dddad2; background:#f7f6f2; }
+  .dose-summary-table td { padding:9px 10px; border-bottom:1px solid #dddad2; vertical-align:top; line-height:1.55; color:#1c1a17; }
+  .dose-summary-table tr:last-child td { border-bottom:none; }
+  .dose-summary-table td:first-child { font-weight:600; font-family:'Lora',serif; color:#1a5c8f; white-space:nowrap; min-width:110px; }
+  .safe-badge { display:inline-block; background:#e6f5ed; color:#2d7d4f; border:1px solid rgba(45,125,79,0.25); border-radius:4px; padding:2px 7px; font-family:'DM Mono',monospace; font-size:9px; margin-right:4px; }
+  .caution-badge { display:inline-block; background:#fef7e8; color:#b7770d; border:1px solid rgba(183,119,13,0.25); border-radius:4px; padding:2px 7px; font-family:'DM Mono',monospace; font-size:9px; margin-right:4px; }
+  .unsafe-badge { display:inline-block; background:#fdf0ef; color:#c0392b; border:1px solid rgba(192,57,43,0.25); border-radius:4px; padding:2px 7px; font-family:'DM Mono',monospace; font-size:9px; margin-right:4px; }
+  .summary-link { display:inline-flex; align-items:center; gap:3px; font-family:'DM Mono',monospace; font-size:9px; color:#1a5c8f; text-decoration:none; background:#e8f2fa; border:1px solid rgba(26,92,143,0.15); border-radius:3px; padding:1px 6px; margin:1px 2px 0 0; }
+
+  .final-analysis-panel { background:#fff; border:1.5px solid #2d7d4f; border-radius:10px; margin-bottom:22px; overflow:hidden; page-break-inside:avoid; }
+  .final-analysis-header { padding:14px 20px; background:#e6f5ed; border-bottom:1px solid rgba(45,125,79,0.15); display:flex; align-items:center; gap:10px; }
+  .final-analysis-header h2 { font-family:'Lora',serif; font-weight:700; font-size:15px; color:#2d7d4f; flex:1; }
+  .final-analysis-body { padding:16px 20px; font-size:13px; color:#1c1a17; line-height:1.75; }
+  .final-analysis-body p { margin-bottom:10px; }
+  .final-verdict { background:linear-gradient(135deg,#e6f5ed,#e8f2fa); border:1px solid rgba(45,125,79,0.2); border-radius:8px; padding:12px 16px; margin-top:14px; font-family:'Lora',serif; font-size:13px; font-style:italic; color:#1c1a17; line-height:1.7; }
+  .verdict-label { font-family:'DM Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.08em; color:#2d7d4f; font-style:normal; display:block; margin-bottom:5px; }
+
+  .ingredient-card { background:#fff; border:1px solid #dddad2; border-radius:10px; margin-bottom:18px; overflow:hidden; page-break-inside:avoid; }
+  .card-header { padding:13px 18px; background:#f7f6f2; border-bottom:1px solid #dddad2; display:flex; align-items:center; gap:10px; }
+  .ing-number { width:24px; height:24px; border-radius:6px; background:#1a5c8f; color:#fff; font-family:'Lora',serif; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ing-name { font-family:'Lora',serif; font-weight:700; font-size:16px; color:#1c1a17; }
+  .ing-dose-badge { font-family:'DM Mono',monospace; font-size:9.5px; padding:2px 8px; border-radius:4px; background:#fef7e8; color:#b7770d; border:1px solid rgba(183,119,13,0.2); }
+  .ing-status { margin-left:auto; font-family:'DM Mono',monospace; font-size:9.5px; padding:2px 9px; border-radius:12px; }
+  .ing-status.ok { background:#e6f5ed; color:#2d7d4f; border:1px solid rgba(45,125,79,0.2); }
+  .ing-status.warn { background:#fdf0ef; color:#c0392b; border:1px solid rgba(192,57,43,0.2); }
+  .card-sections { padding:2px 0; }
+  .section-block { border-bottom:1px solid #dddad2; }
+  .section-block:last-child { border-bottom:none; }
+  .section-trigger { padding:10px 18px; display:flex; align-items:center; gap:9px; }
+  .section-icon { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+  .dose-icon { background:#e8f2fa; } .contra-icon { background:#fdf0ef; } .interact-icon { background:#fef7e8; } .ae-icon { background:#f0eef9; } .disease-icon { background:#e6f5ed; } .drug-icon { background:#fef7e8; }
+  .section-title { font-family:'DM Sans',sans-serif; font-weight:600; font-size:12px; color:#1c1a17; flex:1; }
+  .section-count { font-family:'DM Mono',monospace; font-size:9.5px; color:#9a9690; background:#f4f2ed; border:1px solid #dddad2; padding:1px 7px; border-radius:3px; }
+  .section-content { display:block !important; max-height:none !important; overflow:visible !important; }
+  .section-inner { padding:4px 18px 14px 50px; }
+  .data-row { margin-bottom:11px; }
+  .data-label { font-family:'DM Mono',monospace; font-size:9.5px; color:#9a9690; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px; }
+  .data-value { font-size:12.5px; color:#1c1a17; line-height:1.6; }
+  .data-link { display:inline-flex; align-items:center; gap:4px; background:#f4f2ed; border:1px solid #ccc9c0; border-radius:5px; padding:3px 8px; font-family:'DM Mono',monospace; font-size:9.5px; color:#1a5c8f; text-decoration:none; margin:3px 3px 0 0; word-break:break-all; }
+  .links-group { display:flex; flex-wrap:wrap; gap:3px; margin-top:5px; }
+  .warn-tag { display:inline-flex; align-items:center; gap:4px; background:#fdf0ef; border:1px solid rgba(192,57,43,0.2); border-radius:5px; padding:3px 8px; font-size:11px; color:#c0392b; margin:2px 2px 0 0; }
+  .interact-tag { display:inline-flex; align-items:center; gap:4px; background:#fef7e8; border:1px solid rgba(183,119,13,0.2); border-radius:5px; padding:3px 8px; font-size:11px; color:#b7770d; margin:2px 2px 0 0; }
+  .ae-tag { background:#f0eef9; border:1px solid rgba(108,92,186,0.2); border-radius:5px; padding:3px 8px; font-size:11px; color:#5b4fcf; display:inline-block; margin:2px 2px 0 0; }
+  .disease-block { background:linear-gradient(135deg,#e6f5ed,#e8f2fa); border:1px solid rgba(45,125,79,0.15); border-radius:8px; padding:12px 14px; margin-bottom:9px; }
+  .disease-block-title { font-family:'DM Sans',sans-serif; font-weight:600; font-size:11px; color:#2d7d4f; margin-bottom:7px; text-transform:uppercase; letter-spacing:0.05em; }
+  .pk-pd-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:9px; }
+  .pk-pd-cell { background:#fff; border-radius:6px; padding:9px 11px; border:1px solid #dddad2; }
+  .pk-pd-cell-label { font-family:'DM Mono',monospace; font-size:9.5px; color:#9a9690; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
+  .pk-pd-cell-value { font-size:12px; color:#5a5650; line-height:1.55; }
+  .evidence-level { display:inline-flex; align-items:center; gap:3px; font-family:'DM Mono',monospace; font-size:9.5px; padding:2px 7px; border-radius:3px; margin-left:7px; }
+  .ev-high { background:#e6f5ed; color:#2d7d4f; } .ev-moderate { background:#fef7e8; color:#b7770d; } .ev-low { background:#fdf0ef; color:#c0392b; }
+
+  .pdf-disclaimer { background:#fef7e8; border:1px solid rgba(183,119,13,0.2); border-radius:8px; padding:11px 15px; font-size:11px; color:#5a5650; margin-top:18px; line-height:1.65; }
+  .pdf-disclaimer strong { color:#b7770d; }
+  @media print {
+    body { padding:18px 22px; }
+    .ingredient-card, .dose-summary-panel, .final-analysis-panel { page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="pdf-header">
+    <div class="pdf-title">⚗️ ToxiQuery — Pharmacological Intelligence Report</div>
+    <div class="pdf-meta">Generated: ${ts} · AI-Powered Clinical Analysis · For Research/Educational Use Only</div>
+  </div>
+  ${dsSectionHTML}
+  ${faSectionHTML}
+  <div style="font-family:'Lora',serif;font-weight:700;font-size:16px;color:#1a5c8f;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #dddad2;">
+    Detailed Ingredient Profiles
+  </div>
+  ${cardsHTML}
+  <div class="pdf-disclaimer">
+    <strong>⚠ Clinical Disclaimer:</strong> Data generated by this tool is AI-sourced for research/educational purposes only. Always verify against authoritative pharmacological databases (DrugBank, PubChem, FDA label, etc.). Not a substitute for professional clinical judgment. Links are suggested references — verify independently.
+  </div>
+</body>
+</html>`;
+}
+
+function downloadPDF() {
+  const btn = document.getElementById('downloadBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Opening print dialog…'; }
+
+  try {
+    const htmlContent = buildPrintHTML();
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+    if (!printWin) {
+      alert('Pop-up blocked! Please allow pop-ups for this page, then try again.');
+      if (btn) { btn.disabled = false; btn.innerHTML = '⬇ Download PDF Report'; }
+      return;
+    }
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+    // Wait for fonts/images to load then trigger print
+    printWin.onload = function() {
+      setTimeout(() => {
+        printWin.focus();
+        printWin.print();
+      }, 800);
+    };
+    // Fallback if onload doesn't fire
+    setTimeout(() => {
+      try { printWin.focus(); printWin.print(); } catch(e) {}
+    }, 2000);
+  } catch(e) {
+    alert('PDF generation failed: ' + e.message);
+  } finally {
+    if (btn) {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '⬇ Download PDF Report';
+      }, 2500);
+    }
+  }
+}
+
+function renderResults(data, disease, drugClasses, parsedIngredients) {
+  const container = document.getElementById('resultsContainer');
+  container.innerHTML = '';
+
+  data.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'ingredient-card';
+    card.style.animationDelay = (idx * 0.08) + 's';
+
+    const hasWarnings = (item.contraindications?.absolute?.length > 0) || (item.adverse_effects?.serious?.length > 0);
+    const givenDose = item.given_dose || (parsedIngredients[idx] && parsedIngredients[idx].dose) || null;
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="ing-number">${idx+1}</div>
+        <div class="ing-name">${escHtml(item.name)}</div>
+        ${givenDose ? `<span class="ing-dose-badge">Dose: ${escHtml(givenDose)}</span>` : ''}
+        <div class="ing-status ${hasWarnings?'warn':'ok'}">${hasWarnings?'⚠ Warnings':'✓ Profiled'}</div>
+      </div>
+      ${item.summary ? `<div style="padding:12px 20px;font-size:13px;color:var(--text2);line-height:1.7;border-bottom:1px solid var(--border);font-style:italic;">${escHtml(item.summary)}</div>` : ''}
+      <div class="card-sections">
+        ${renderDoseSection(item.dose)}
+        ${renderContraSection(item.contraindications)}
+        ${renderInteractSection(item.interactions)}
+        ${renderAESection(item.adverse_effects)}
+        ${item.disease_implications ? renderDiseaseSection(item.disease_implications) : ''}
+        ${item.drug_class_interactions ? renderDrugClassSection(item.drug_class_interactions) : ''}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.section-trigger').forEach(trigger => {
+    trigger.addEventListener('click', () => {
+      const content = trigger.nextElementSibling;
+      const arrow = trigger.querySelector('.section-arrow');
+      content.classList.toggle('open');
+      arrow.classList.toggle('open');
+    });
+  });
+}
+
+function renderDoseSection(dose) {
+  if (!dose) return '';
+  const rows = [
+    dose.standard ? `<div class="data-row"><div class="data-label">Standard Dose</div><div class="data-value">${escHtml(dose.standard)}</div></div>` : '',
+    dose.max ? `<div class="data-row"><div class="data-label">Maximum Dose</div><div class="data-value">${escHtml(dose.max)}</div></div>` : '',
+    dose.renal_adjustment ? `<div class="data-row"><div class="data-label">Renal Adjustment</div><div class="data-value">${escHtml(dose.renal_adjustment)}</div></div>` : '',
+    dose.hepatic_adjustment ? `<div class="data-row"><div class="data-label">Hepatic Adjustment</div><div class="data-value">${escHtml(dose.hepatic_adjustment)}</div></div>` : '',
+  ].filter(Boolean).join('');
+
+  return `<div class="section-block">
+    <div class="section-trigger">
+      <div class="section-icon dose-icon">💊</div>
+      <div class="section-title">Dose & Administration</div>
+      <span class="section-arrow">▼</span>
+    </div>
+    <div class="section-content">
+      <div class="section-inner">${rows}${renderLinks(dose.links)}</div>
+    </div>
+  </div>`;
+}
+
+function renderContraSection(ci) {
+  if (!ci) return '';
+  const abs = (ci.absolute||[]).map(c=>`<span class="warn-tag">⛔ ${escHtml(c)}</span>`).join('');
+  const rel = (ci.relative||[]).map(c=>`<span class="warn-tag" style="opacity:0.75">⚠ ${escHtml(c)}</span>`).join('');
+  return `<div class="section-block">
+    <div class="section-trigger">
+      <div class="section-icon contra-icon">🚫</div>
+      <div class="section-title">Contraindications</div>
+      <span class="section-count">${(ci.absolute||[]).length + (ci.relative||[]).length}</span>
+      <span class="section-arrow">▼</span>
+    </div>
+    <div class="section-content">
+      <div class="section-inner">
+        ${abs ? `<div class="data-row"><div class="data-label">Absolute</div><div>${abs}</div></div>` : ''}
+        ${rel ? `<div class="data-row"><div class="data-label">Relative</div><div>${rel}</div></div>` : ''}
+        ${renderLinks(ci.links)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderInteractSection(interactions) {
+  if (!interactions) return '';
+  const major = (interactions.major||[]).map(i=>
+    `<div class="data-row" style="padding:9px 11px;background:var(--accent3-light);border:1px solid rgba(192,57,43,0.15);border-radius:7px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span class="warn-tag" style="font-size:11px;">⚡ MAJOR</span><strong style="font-size:13px;">${escHtml(i.drug||'')}</strong></div>
+      ${i.mechanism ? `<div class="data-label">Mechanism</div><div class="data-value">${escHtml(i.mechanism)}</div>` : ''}
+      ${i.clinical_effect ? `<div class="data-label" style="margin-top:6px;">Clinical Effect</div><div class="data-value">${escHtml(i.clinical_effect)}</div>` : ''}
+    </div>`).join('');
+  const moderate = (interactions.moderate||[]).map(i=>
+    `<div class="data-row" style="padding:9px 11px;background:var(--accent4-light);border:1px solid rgba(183,119,13,0.15);border-radius:7px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span class="interact-tag" style="font-size:11px;">⚠ MODERATE</span><strong style="font-size:13px;">${escHtml(i.drug||'')}</strong></div>
+      ${i.mechanism ? `<div class="data-label">Mechanism</div><div class="data-value">${escHtml(i.mechanism)}</div>` : ''}
+      ${i.clinical_effect ? `<div class="data-label" style="margin-top:6px;">Clinical Effect</div><div class="data-value">${escHtml(i.clinical_effect)}</div>` : ''}
+    </div>`).join('');
+  const minor = (interactions.minor||[]).map(d=>`<span class="interact-tag">${escHtml(typeof d==='string'?d:d.drug||d)}</span>`).join('');
+  const total = (interactions.major||[]).length + (interactions.moderate||[]).length + (interactions.minor||[]).length;
+  return `<div class="section-block">
+    <div class="section-trigger">
+      <div class="section-icon interact-icon">⚡</div>
+      <div class="section-title">Drug Interactions</div>
+      <span class="section-count">${total}</span>
+      <span class="section-arrow">▼</span>
+    </div>
+    <div class="section-content">
+      <div class="section-inner">
+        ${major}${moderate}
+        ${minor ? `<div class="data-row"><div class="data-label">Minor / Informational</div><div>${minor}</div></div>` : ''}
+        ${renderLinks(interactions.links)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAESection(ae) {
+  if (!ae) return '';
+  const common = (ae.common||[]).map(e=>`<span class="ae-tag">${escHtml(e)}</span>`).join('');
+  const serious = (ae.serious||[]).map(e=>`<span class="warn-tag">${escHtml(e)}</span>`).join('');
+  const rare = (ae.rare||[]).map(e=>`<span class="ae-tag" style="opacity:0.7">${escHtml(e)}</span>`).join('');
+  return `<div class="section-block">
+    <div class="section-trigger">
+      <div class="section-icon ae-icon">⚕️</div>
+      <div class="section-title">Side Effects / Adverse Effects</div>
+      <span class="section-count">${(ae.common||[]).length+(ae.serious||[]).length+(ae.rare||[]).length}</span>
+      <span class="section-arrow">▼</span>
+    </div>
+    <div class="section-content">
+      <div class="section-inner">
+        ${serious ? `<div class="data-row"><div class="data-label">Serious / Severe</div><div>${serious}</div></div>` : ''}
+        ${common ? `<div class="data-row"><div class="data-label">Common (>1%)</div><div>${common}</div></div>` : ''}
+        ${rare ? `<div class="data-row"><div class="data-label">Rare / Notable</div><div>${rare}</div></div>` : ''}
+        ${renderLinks(ae.links)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderDiseaseSection(di) {
+  const evClass = {'High':'ev-high','Moderate':'ev-moderate','Low':'ev-low'}[di.evidence_level] || 'ev-low';
+  return `<div class="section-block">
+    <div class="section-trigger">
+      <div class="section-icon disease-icon">🔬</div>
+      <div class="section-title">Disease Implications: ${escHtml(di.disease||'')}</div>
+      <span class="evidence-level ${evClass}">${escHtml(di.evidence_level||'')} Evidence</span>
+      <span class="section-arrow">▼</span>
+    </div>
+    <div class="section-content">
+      <div class="section-inner">
+        <div class="disease-block">
+          <div class="disease-block-title">Clinical Role</div>
+          <div class="data-value">${escHtml(di.role||'')}</div>
+          ${di.clinical_notes ? `<div style="margin-top:8px;font-size:12.5px;color:var(--text2);">${escHtml(di.clinical_notes)}</div>` : ''}
+        </div>
+        <div class="pk-pd-grid">
+          <div class="pk-pd-cell"><div class="pk-pd-cell-label">PK Changes</div><div class="pk-pd-cell-value">${escHtml(di.pk_changes||'Not reported')}</div></div>
+          <div class="pk-pd-cell"><div class="pk-pd-cell-label">PD Changes</div><div class="pk-pd-cell-value">${escHtml(di.pd_changes||'Not reported')}</div></div>
+        </div>
+        ${di.research_summary ? `<div class="data-row" style="margin-top:12px;"><div class="data-label">Research Summary</div><div class="data-value">${escHtml(di.research_summary)}</div></div>` : ''}
+        ${renderLinks(di.links)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderDrugClassSection(dcList) {
+  if (!dcList || !dcList.length) return '';
+  const items = dcList.map(dc => {
+    const sevClass = dc.severity === 'Major' ? 'warn-tag' : 'interact-tag';
+    return `<div style="padding:10px 12px;background:var(--accent4-light);border:1px solid rgba(183,119,13,0.15);border-radius:8px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="${sevClass}">${escHtml(dc.severity||'')} Interaction</span>
+        <strong style="font-size:13px;">${escHtml(dc.class_or_drug||'')}</strong>
+        <span style="font-size:11px;color:var(--text3);">${escHtml(dc.interaction_type||'')}</span>
+      </div>
+      ${dc.mechanism ? `<div class="data-label">Mechanism</div><div class="data-value" style="margin-bottom:8px;">${escHtml(dc.mechanism)}</div>` : ''}
+      ${dc.clinical_consequence ? `<div class="data-label">Clinical Consequence</div><div class="data-value" style="margin-bottom:8px;">${escHtml(dc.clinical_consequence)}</div>` : ''}
+      ${dc.management ? `<div class="data-label">Management</div><div class="data-value">${escHtml(dc.management)}</div>` : ''}
+      ${renderLinks(dc.links)}
+    </div>`;
+  }).join('');
+  return `<div class="section-block">
+    <div class="section-trigger">
+      <div class="section-icon drug-icon">💉</div>
+      <div class="section-title">Drug Class Interactions</div>
+      <span class="section-count">${dcList.length}</span>
+      <span class="section-arrow">▼</span>
+    </div>
+    <div class="section-content">
+      <div class="section-inner">${items}</div>
+    </div>
+  </div>`;
+}
+
+function renderLinks(links) {
+  if (!links || !links.length) return '';
+  const linksHtml = links.map(l =>
+    `<a class="data-link" href="${escHtml(l.url||'#')}" target="_blank" rel="noopener">🔗 ${escHtml(l.label||'Reference')}</a>`
+  ).join('');
+  return `<div class="data-row" style="margin-top:12px;"><div class="data-label">References & Links</div><div class="links-group">${linksHtml}</div></div>`;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
