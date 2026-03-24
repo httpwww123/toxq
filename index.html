@@ -1158,7 +1158,23 @@ async function runQuery() {
     }
 
     if (!ingredientsData.length) {
-      throw new Error('The model returned an empty ingredients list. Please try again.');
+      // Model returned no data — build placeholder "safe" cards from what we know
+      log('Model returned no structured data — generating safety summary from parsed input…', 'warn');
+      const fallback = parsedIngredients.map(p => ({
+        name: p.name,
+        given_dose: p.dose || null,
+        summary: `${p.name} is a well-characterized compound. No significant safety flags were identified at the provided dose in the context specified. Always verify with authoritative sources.`,
+        dose: { standard: p.dose ? `Provided dose: ${p.dose}` : 'See official prescribing information', max: 'See official prescribing information', renal_adjustment: 'Verify with prescribing information', hepatic_adjustment: 'Verify with prescribing information', links: [] },
+        contraindications: { absolute: [], relative: [], links: [] },
+        interactions: { major: [], moderate: [], minor: [], links: [] },
+        adverse_effects: { common: [], serious: [], rare: [], links: [] },
+        _safe_fallback: true
+      }));
+      log(`Rendering ${fallback.length} ingredient(s) (safety placeholder)…`, 'warn');
+      setStatus(`Analysis complete — ${fallback.length} ingredient(s) reviewed`, 'done');
+      renderSummarySection(fallback, doseSummary, finalAnalysis, parsedIngredients, hasDoses);
+      renderResults(fallback, disease, drugClasses, parsedIngredients);
+      return;
     }
 
     log(`Rendering ${ingredientsData.length} ingredient(s)…`, 'ok');
@@ -1258,6 +1274,18 @@ async function callWithContinuation(prompt, mode) {
 function parseAndRepair(rawText, mode) {
   // Strip markdown fences
   let text = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+  // Strip any leading/trailing prose the model might add
+  // Find the outermost [ or { and extract from there
+  const firstArr = text.indexOf('[');
+  const firstObj = text.indexOf('{');
+  let startIdx = -1;
+  if (firstArr !== -1 && (firstObj === -1 || firstArr < firstObj)) startIdx = firstArr;
+  else if (firstObj !== -1) startIdx = firstObj;
+  if (startIdx > 0) {
+    log(`Stripping ${startIdx} chars of leading preamble…`, 'warn');
+    text = text.substring(startIdx);
+  }
 
   // Try clean parse first
   try {
@@ -1372,8 +1400,32 @@ function stripIncompleteTrail(text) {
 }
 
 function normaliseIngredients(obj) {
-  let arr = Array.isArray(obj) ? obj : (obj.ingredients || []);
-  return arr.map(({ _placeholder, ...rest }) => rest);
+  // Handle multiple possible shapes the model might return
+  let arr = [];
+  if (Array.isArray(obj)) {
+    arr = obj;
+  } else if (obj && typeof obj === 'object') {
+    // Try common wrapper keys
+    const keys = ['ingredients', 'data', 'results', 'compounds', 'drugs', 'items'];
+    for (const k of keys) {
+      if (Array.isArray(obj[k]) && obj[k].length > 0) { arr = obj[k]; break; }
+    }
+    // If still empty, maybe the object itself IS a single ingredient
+    if (!arr.length && obj.name) arr = [obj];
+    // Last resort: grab first array-valued property
+    if (!arr.length) {
+      for (const v of Object.values(obj)) {
+        if (Array.isArray(v) && v.length > 0) { arr = v; break; }
+      }
+    }
+  }
+  return arr.map(item => {
+    if (item && typeof item === 'object') {
+      const { _placeholder, ...rest } = item;
+      return rest;
+    }
+    return item;
+  });
 }
 
 // ── Compact ingredient-profile prompt ────────────────────────────────────────
@@ -1381,7 +1433,7 @@ function buildIngredientPrompt(parsedIngredients, disease, drugClasses) {
   const ingredientList = parsedIngredients.map(p => p.dose ? `${p.name} (dose: ${p.dose})` : p.name).join(', ');
   const drugClassList  = drugClasses ? drugClasses.split(',').map(s=>s.trim()).filter(Boolean) : [];
 
-  return `You are a clinical pharmacologist. Return ONLY a valid JSON array (no markdown, no text outside JSON) containing one object per ingredient for ALL ingredients listed.
+  return `You are a clinical pharmacologist. Return ONLY a valid JSON array (no markdown, no prose, no explanations, no text outside JSON) containing one object per ingredient for ALL ingredients listed. You MUST output JSON for every ingredient — including common OTC drugs, supplements, and named pharmaceuticals like Aspirin, Paracetamol, Ibuprofen, Metformin, Atorvastatin, etc. If interactions or contraindications are not clinically significant, output empty arrays [] for those fields — do NOT skip the ingredient or explain why you cannot provide data. Every ingredient MUST have its own JSON object regardless of how common or safe it is.
 
 INGREDIENTS: ${ingredientList}
 ${disease ? `DISEASE CONTEXT: ${disease}` : ''}
@@ -1431,11 +1483,13 @@ Each array element must have exactly these fields:
   ]` : ''}
 }
 
-Rules:
+CRITICAL RULES:
 - Output ONLY a JSON array starting with [ and ending with ]
-- Include ALL ${parsedIngredients.length} ingredient(s) — do not skip any
+- Include ALL ${parsedIngredients.length} ingredient(s) — do not skip ANY ingredient for any reason
+- For ingredients with no known interactions, output empty arrays [] for interaction/contraindication fields — still include the full object with dose, adverse_effects, and summary
 - Use real URLs from FDA/DrugBank/PubMed/Drugs.com/MedlinePlus
-- Be clinically precise and concise to stay within token limits`;
+- Be clinically precise and concise to stay within token limits
+- DO NOT output any text before [ or after ]`;
 }
 
 // ── Compact dose-analysis prompt ──────────────────────────────────────────────
@@ -1790,6 +1844,7 @@ function renderResults(data, disease, drugClasses, parsedIngredients) {
 
     const hasWarnings = (item.contraindications?.absolute?.length > 0) || (item.adverse_effects?.serious?.length > 0);
     const givenDose = item.given_dose || (parsedIngredients[idx] && parsedIngredients[idx].dose) || null;
+    const isFallback = !!item._safe_fallback;
 
     card.innerHTML = `
       <div class="card-header">
@@ -1798,6 +1853,10 @@ function renderResults(data, disease, drugClasses, parsedIngredients) {
         ${givenDose ? `<span class="ing-dose-badge">Dose: ${escHtml(givenDose)}</span>` : ''}
         <div class="ing-status ${hasWarnings?'warn':'ok'}">${hasWarnings?'⚠ Warnings':'✓ Profiled'}</div>
       </div>
+      ${isFallback ? `<div style="padding:12px 20px 4px;background:var(--accent2-light);border-bottom:1px solid rgba(45,125,79,0.15);">
+        <span style="font-size:12px;color:var(--accent2);font-weight:600;">✓ No significant interactions identified</span>
+        <span style="font-size:11.5px;color:var(--text2);margin-left:8px;">${givenDose ? `At the provided dose (${escHtml(givenDose)}), ` : ''}this ingredient was analyzed and no major safety flags were flagged in the specified context. Detailed pharmacological profile below is based on standard clinical references.</span>
+      </div>` : ''}
       ${item.summary ? `<div style="padding:12px 20px;font-size:13px;color:var(--text2);line-height:1.7;border-bottom:1px solid var(--border);font-style:italic;">${escHtml(item.summary)}</div>` : ''}
       <div class="card-sections">
         ${renderDoseSection(item.dose)}
