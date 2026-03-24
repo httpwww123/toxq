@@ -1144,6 +1144,8 @@ async function runQuery() {
     setStatus('Analyzing ingredient profiles…');
 
     const ingredientsData = await callWithContinuation(ingredientPrompt, 'ingredients');
+    // Replace model-hallucinated links with deterministic reliable ones
+    const reliableIngredientsData = injectReliableLinks(ingredientsData);
 
     let doseSummary = null;
     let finalAnalysis = null;
@@ -1151,23 +1153,27 @@ async function runQuery() {
     if (hasDoses) {
       log('Fetching dose-specific safety analysis…', 'ok');
       setStatus('Running dose safety analysis…');
-      const dosePrompt = buildDosePrompt(parsedIngredients, ingredientsData, disease, drugClasses);
+      const dosePrompt = buildDosePrompt(parsedIngredients, reliableIngredientsData, disease, drugClasses);
       const doseData = await callWithContinuation(dosePrompt, 'dose');
-      doseSummary   = doseData.dose_summary   || null;
+      // Inject reliable links into dose_summary entries
+      doseSummary = (doseData.dose_summary || []).map(d => ({
+        ...d,
+        dose_links: makeReliableLinks(d.name || parsedIngredients[0]?.name || 'drug', 'dose_links')
+      }));
       finalAnalysis = doseData.final_analysis || null;
     }
 
-    if (!ingredientsData.length) {
+    if (!reliableIngredientsData.length) {
       // Model returned no data — build placeholder "safe" cards from what we know
       log('Model returned no structured data — generating safety summary from parsed input…', 'warn');
       const fallback = parsedIngredients.map(p => ({
         name: p.name,
         given_dose: p.dose || null,
         summary: `${p.name} is a well-characterized compound. No significant safety flags were identified at the provided dose in the context specified. Always verify with authoritative sources.`,
-        dose: { standard: p.dose ? `Provided dose: ${p.dose}` : 'See official prescribing information', max: 'See official prescribing information', renal_adjustment: 'Verify with prescribing information', hepatic_adjustment: 'Verify with prescribing information', links: [] },
-        contraindications: { absolute: [], relative: [], links: [] },
-        interactions: { major: [], moderate: [], minor: [], links: [] },
-        adverse_effects: { common: [], serious: [], rare: [], links: [] },
+        dose: { standard: p.dose ? `Provided dose: ${p.dose}` : 'See official prescribing information', max: 'See official prescribing information', renal_adjustment: 'Verify with prescribing information', hepatic_adjustment: 'Verify with prescribing information', links: makeReliableLinks(p.name, 'dose') },
+        contraindications: { absolute: [], relative: [], links: makeReliableLinks(p.name, 'contraindications') },
+        interactions: { major: [], moderate: [], minor: [], links: makeReliableLinks(p.name, 'interactions') },
+        adverse_effects: { common: [], serious: [], rare: [], links: makeReliableLinks(p.name, 'adverse_effects') },
         _safe_fallback: true
       }));
       log(`Rendering ${fallback.length} ingredient(s) (safety placeholder)…`, 'warn');
@@ -1177,12 +1183,12 @@ async function runQuery() {
       return;
     }
 
-    log(`Rendering ${ingredientsData.length} ingredient(s)…`, 'ok');
+    log(`Rendering ${reliableIngredientsData.length} ingredient(s)…`, 'ok');
     if (hasDoses) log('Rendering dose-safety summary…', 'ok');
-    setStatus(`Complete — ${ingredientsData.length} ingredient(s) analyzed`, 'done');
+    setStatus(`Complete — ${reliableIngredientsData.length} ingredient(s) analyzed`, 'done');
 
-    renderSummarySection(ingredientsData, doseSummary, finalAnalysis, parsedIngredients, hasDoses);
-    renderResults(ingredientsData, disease, drugClasses, parsedIngredients);
+    renderSummarySection(reliableIngredientsData, doseSummary, finalAnalysis, parsedIngredients, hasDoses);
+    renderResults(reliableIngredientsData, disease, drugClasses, parsedIngredients);
 
   } catch(err) {
     log('Error: ' + err.message, 'err');
@@ -1399,6 +1405,95 @@ function stripIncompleteTrail(text) {
   return text;
 }
 
+// ── Deterministic reference link generator ───────────────────────────────────
+// Instead of trusting the model to produce valid URLs (it hallucinates paths),
+// we generate reliable search/lookup URLs client-side from the drug name.
+function makeReliableLinks(drugName, category) {
+  const q = encodeURIComponent(drugName.trim());
+  const qDash = drugName.trim().toLowerCase().replace(/\s+/g, '-');
+
+  const base = {
+    fda:      `https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=`,
+    fdaSearch:`https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=BasicSearch.process&selected=0&searchterm=${q}`,
+    drugbank: `https://go.drugbank.com/unearth/q?searcher=drugs&query=${q}`,
+    pubchem:  `https://pubchem.ncbi.nlm.nih.gov/#query=${q}`,
+    pubmed:   `https://pubmed.ncbi.nlm.nih.gov/?term=${q}`,
+    drugscom: `https://www.drugs.com/search.php?searchterm=${q}`,
+    drugsInt: `https://www.drugs.com/drug-interactions/${qDash}.html`,
+    drugsDose:`https://www.drugs.com/dosage/${qDash}.html`,
+    medline:  `https://medlineplus.gov/druginfo/meds/a6${Math.abs(hashStr(drugName))%99999+10000}.html`,
+    medSearch:`https://medlineplus.gov/drug/search?query=${q}`,
+    rxlist:   `https://www.rxlist.com/search/rxl/${q}`,
+    faers:    `https://www.fda.gov/drugs/questions-and-answers-fdas-adverse-event-reporting-system-faers/fda-adverse-event-reporting-system-faers-public-dashboard`,
+    openFDA:  `https://api.fda.gov/drug/label.json?search=openfda.generic_name:${q}&limit=1`,
+    whoAtc:   `https://www.whocc.no/atc_ddd_index/?name=${q}`,
+    bnf:      `https://bnf.nice.org.uk/search/?q=${q}`,
+  };
+
+  const sets = {
+    dose: [
+      { label: 'Drugs.com Dosage', url: base.drugsDose },
+      { label: 'FDA Drug Label Search', url: base.fdaSearch },
+      { label: 'DrugBank', url: base.drugbank },
+      { label: 'BNF / NICE', url: base.bnf },
+    ],
+    contraindications: [
+      { label: 'Drugs.com', url: base.drugscom },
+      { label: 'MedlinePlus', url: base.medSearch },
+      { label: 'RxList', url: base.rxlist },
+    ],
+    interactions: [
+      { label: 'Drugs.com Interactions', url: base.drugsInt },
+      { label: 'DrugBank Interactions', url: base.drugbank },
+      { label: 'PubMed', url: base.pubmed },
+    ],
+    adverse_effects: [
+      { label: 'FDA FAERS Dashboard', url: base.faers },
+      { label: 'Drugs.com Side Effects', url: `https://www.drugs.com/sfx/${qDash}-side-effects.html` },
+      { label: 'DrugBank', url: base.drugbank },
+    ],
+    disease: [
+      { label: `PubMed: ${drugName}`, url: base.pubmed },
+      { label: 'DrugBank', url: base.drugbank },
+      { label: 'WHO ATC Index', url: base.whoAtc },
+    ],
+    drug_class: [
+      { label: 'Drugs.com Interactions', url: base.drugsInt },
+      { label: 'PubMed', url: base.pubmed },
+    ],
+    dose_links: [
+      { label: 'Drugs.com Dosage', url: base.drugsDose },
+      { label: 'FDA Drug Label Search', url: base.fdaSearch },
+      { label: 'DrugBank', url: base.drugbank },
+    ],
+  };
+  return sets[category] || sets.dose;
+}
+
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// Replace all model-generated links in ingredient data with reliable ones
+function injectReliableLinks(ingredients) {
+  return ingredients.map(item => {
+    const name = item.name || 'drug';
+    if (item.dose) item.dose.links = makeReliableLinks(name, 'dose');
+    if (item.contraindications) item.contraindications.links = makeReliableLinks(name, 'contraindications');
+    if (item.interactions) item.interactions.links = makeReliableLinks(name, 'interactions');
+    if (item.adverse_effects) item.adverse_effects.links = makeReliableLinks(name, 'adverse_effects');
+    if (item.disease_implications) item.disease_implications.links = makeReliableLinks(name, 'disease');
+    if (item.drug_class_interactions) {
+      item.drug_class_interactions = item.drug_class_interactions.map(dc => ({
+        ...dc, links: makeReliableLinks(name, 'drug_class')
+      }));
+    }
+    return item;
+  });
+}
+
 function normaliseIngredients(obj) {
   // Handle multiple possible shapes the model might return
   let arr = [];
@@ -1449,24 +1544,24 @@ Each array element must have exactly these fields:
     "max": "maximum safe dose",
     "renal_adjustment": "renal impairment adjustment",
     "hepatic_adjustment": "hepatic impairment adjustment",
-    "links": [{"label":"FDA Label","url":"https://www.accessdata.fda.gov/..."},{"label":"DrugBank","url":"https://go.drugbank.com/drugs/..."}]
+    "links": []
   },
   "contraindications": {
     "absolute": ["..."],
     "relative": ["..."],
-    "links": [{"label":"Drugs.com","url":"https://www.drugs.com/..."}]
+    "links": []
   },
   "interactions": {
     "major":    [{"drug":"name","mechanism":"...","clinical_effect":"..."}],
     "moderate": [{"drug":"name","mechanism":"...","clinical_effect":"..."}],
     "minor":    ["drug1","drug2"],
-    "links": [{"label":"Drugs.com Interactions","url":"https://www.drugs.com/drug-interactions/..."}]
+    "links": []
   },
   "adverse_effects": {
     "common":  ["..."],
     "serious": ["..."],
     "rare":    ["..."],
-    "links": [{"label":"FDA FAERS","url":"https://www.fda.gov/safety/..."}]
+    "links": []
   }${disease ? `,
   "disease_implications": {
     "disease": "${disease.replace(/"/g,"'")}",
@@ -1476,10 +1571,10 @@ Each array element must have exactly these fields:
     "evidence_level": "High|Moderate|Low",
     "clinical_notes": "key considerations",
     "research_summary": "evidence summary",
-    "links": [{"label":"PubMed","url":"https://pubmed.ncbi.nlm.nih.gov/?term=..."}]
+    "links": []
   }` : ''}${drugClassList.length ? `,
   "drug_class_interactions": [${drugClassList.map(dc => `
-    {"class_or_drug":"${dc.replace(/"/g,"'")}","interaction_type":"PK|PD|Both","severity":"Major|Moderate|Minor","mechanism":"...","clinical_consequence":"...","management":"...","links":[{"label":"Reference","url":"https://www.drugs.com/..."}]}`).join(',')}
+    {"class_or_drug":"${dc.replace(/"/g,"'")}","interaction_type":"PK|PD|Both","severity":"Major|Moderate|Minor","mechanism":"...","clinical_consequence":"...","management":"...","links":[]}`).join(',')}
   ]` : ''}
 }
 
@@ -1487,7 +1582,7 @@ CRITICAL RULES:
 - Output ONLY a JSON array starting with [ and ending with ]
 - Include ALL ${parsedIngredients.length} ingredient(s) — do not skip ANY ingredient for any reason
 - For ingredients with no known interactions, output empty arrays [] for interaction/contraindication fields — still include the full object with dose, adverse_effects, and summary
-- Use real URLs from FDA/DrugBank/PubMed/Drugs.com/MedlinePlus
+- Leave all "links" arrays as [] — reference links are handled separately
 - Be clinically precise and concise to stay within token limits
 - DO NOT output any text before [ or after ]`;
 }
@@ -1520,7 +1615,7 @@ Return exactly:
       "contraindications_at_dose": "contraindications relevant at this dose",
       "interactions_at_dose": "interactions triggered/worsened at this dose",
       "adverse_effects_at_dose": "adverse effects at this dose level",
-      "dose_links": [{"label":"Dosing Reference","url":"https://www.drugs.com/dosage/..."},{"label":"FDA Label","url":"https://www.accessdata.fda.gov/..."}]
+      "dose_links": []
     }
   ],
   "final_analysis": {
@@ -1564,6 +1659,15 @@ function renderSummarySection(ingredients, doseSummary, finalAnalysis, parsedIng
 
   let tableHtml = `
     <table class="dose-summary-table">
+      <colgroup>
+        <col style="width:13%">
+        <col style="width:10%">
+        <col style="width:13%">
+        <col style="width:18%">
+        <col style="width:17%">
+        <col style="width:17%">
+        <col style="width:12%">
+      </colgroup>
       <thead>
         <tr>
           <th>Ingredient</th>
@@ -1694,6 +1798,11 @@ function buildPrintHTML() {
 <title>ToxiQuery Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: 'DM Mono', monospace; font-size: 8pt; color: #9a9690; }
+  }
   :root {
     --bg:#fff; --surface:#fff; --surface2:#f7f6f2; --surface3:#eceae4;
     --border:#dddad2; --border-bright:#ccc9c0;
@@ -1702,95 +1811,112 @@ function buildPrintHTML() {
     --accent3:#c0392b; --accent3-light:#fdf0ef;
     --accent4:#b7770d; --accent4-light:#fef7e8;
     --text:#1c1a17; --text2:#5a5650; --text3:#9a9690;
-    --shadow:rgba(28,26,23,0.06);
   }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'DM Sans',sans-serif; font-size:13px; color:#1c1a17; background:#fff; padding:28px 32px; }
-  
-  .pdf-header { border-bottom:2.5px solid #1a5c8f; padding-bottom:14px; margin-bottom:24px; }
-  .pdf-title { font-family:'Lora',serif; font-size:22px; font-weight:700; color:#1a5c8f; }
-  .pdf-meta { font-size:11px; color:#9a9690; margin-top:4px; font-family:'DM Mono',monospace; }
+  body { font-family:'DM Sans',sans-serif; font-size:11pt; color:#1c1a17; background:#fff; }
 
-  .dose-summary-panel { background:#fff; border:1.5px solid #1a5c8f; border-radius:10px; margin-bottom:22px; overflow:hidden; page-break-inside:avoid; }
-  .dose-summary-header { padding:14px 20px; background:#e8f2fa; border-bottom:1px solid rgba(26,92,143,0.15); display:flex; align-items:center; gap:10px; }
-  .dose-summary-header h2 { font-family:'Lora',serif; font-weight:700; font-size:15px; color:#1a5c8f; flex:1; }
-  .dose-summary-header p { font-size:11px; color:#5a5650; margin-top:2px; }
+  /* ── HEADER ── */
+  .pdf-header { border-bottom:2.5pt solid #1a5c8f; padding-bottom:10pt; margin-bottom:18pt; display:flex; align-items:flex-end; justify-content:space-between; }
+  .pdf-title { font-family:'Lora',serif; font-size:18pt; font-weight:700; color:#1a5c8f; }
+  .pdf-meta { font-size:8pt; color:#9a9690; font-family:'DM Mono',monospace; line-height:1.8; text-align:right; }
+
+  /* ── SECTION HEADING ── */
+  .section-heading { font-family:'Lora',serif; font-weight:700; font-size:13pt; color:#1a5c8f; margin:18pt 0 10pt; padding-bottom:6pt; border-bottom:1pt solid #dddad2; page-break-after:avoid; }
+
+  /* ── DOSE SUMMARY TABLE ── */
+  .dose-summary-panel { border:1.5pt solid #1a5c8f; border-radius:6pt; margin-bottom:16pt; overflow:hidden; page-break-inside:avoid; }
+  .dose-summary-header { padding:10pt 14pt; background:#e8f2fa; border-bottom:1pt solid rgba(26,92,143,0.18); }
+  .dose-summary-header h2 { font-family:'Lora',serif; font-weight:700; font-size:12pt; color:#1a5c8f; }
+  .dose-summary-header p { font-size:8pt; color:#5a5650; margin-top:2pt; }
   .download-btn { display:none !important; }
-  .dose-summary-body { padding:16px 20px; overflow-x:auto; }
-  .dose-summary-table { width:100%; border-collapse:collapse; font-size:11.5px; }
-  .dose-summary-table th { font-family:'DM Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.07em; color:#9a9690; text-align:left; padding:7px 10px; border-bottom:2px solid #dddad2; background:#f7f6f2; }
-  .dose-summary-table td { padding:9px 10px; border-bottom:1px solid #dddad2; vertical-align:top; line-height:1.55; color:#1c1a17; }
+  .dose-summary-body { padding:10pt 14pt; }
+  .dose-summary-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:8.5pt; }
+  .dose-summary-table colgroup col:nth-child(1) { width:13%; }
+  .dose-summary-table colgroup col:nth-child(2) { width:10%; }
+  .dose-summary-table colgroup col:nth-child(3) { width:11%; }
+  .dose-summary-table colgroup col:nth-child(4) { width:18%; }
+  .dose-summary-table colgroup col:nth-child(5) { width:18%; }
+  .dose-summary-table colgroup col:nth-child(6) { width:18%; }
+  .dose-summary-table colgroup col:nth-child(7) { width:12%; }
+  .dose-summary-table th { font-family:'DM Mono',monospace; font-size:7pt; text-transform:uppercase; letter-spacing:0.05em; color:#9a9690; text-align:left; padding:5pt 7pt; border-bottom:1.5pt solid #dddad2; background:#f7f6f2; word-wrap:break-word; }
+  .dose-summary-table td { padding:6pt 7pt; border-bottom:1pt solid #dddad2; vertical-align:top; line-height:1.45; color:#1c1a17; word-wrap:break-word; overflow-wrap:break-word; }
   .dose-summary-table tr:last-child td { border-bottom:none; }
-  .dose-summary-table td:first-child { font-weight:600; font-family:'Lora',serif; color:#1a5c8f; white-space:nowrap; min-width:110px; }
-  .safe-badge { display:inline-block; background:#e6f5ed; color:#2d7d4f; border:1px solid rgba(45,125,79,0.25); border-radius:4px; padding:2px 7px; font-family:'DM Mono',monospace; font-size:9px; margin-right:4px; }
-  .caution-badge { display:inline-block; background:#fef7e8; color:#b7770d; border:1px solid rgba(183,119,13,0.25); border-radius:4px; padding:2px 7px; font-family:'DM Mono',monospace; font-size:9px; margin-right:4px; }
-  .unsafe-badge { display:inline-block; background:#fdf0ef; color:#c0392b; border:1px solid rgba(192,57,43,0.25); border-radius:4px; padding:2px 7px; font-family:'DM Mono',monospace; font-size:9px; margin-right:4px; }
-  .summary-link { display:inline-flex; align-items:center; gap:3px; font-family:'DM Mono',monospace; font-size:9px; color:#1a5c8f; text-decoration:none; background:#e8f2fa; border:1px solid rgba(26,92,143,0.15); border-radius:3px; padding:1px 6px; margin:1px 2px 0 0; }
+  .dose-summary-table td:first-child { font-weight:600; font-family:'Lora',serif; color:#1a5c8f; }
+  .safe-badge { display:inline-block; background:#e6f5ed; color:#2d7d4f; border:0.75pt solid rgba(45,125,79,0.3); border-radius:3pt; padding:1pt 5pt; font-family:'DM Mono',monospace; font-size:7pt; }
+  .caution-badge { display:inline-block; background:#fef7e8; color:#b7770d; border:0.75pt solid rgba(183,119,13,0.3); border-radius:3pt; padding:1pt 5pt; font-family:'DM Mono',monospace; font-size:7pt; }
+  .unsafe-badge { display:inline-block; background:#fdf0ef; color:#c0392b; border:0.75pt solid rgba(192,57,43,0.3); border-radius:3pt; padding:1pt 5pt; font-family:'DM Mono',monospace; font-size:7pt; }
+  .summary-link { display:inline-block; font-family:'DM Mono',monospace; font-size:7pt; color:#1a5c8f; text-decoration:underline; word-break:break-all; }
 
-  .final-analysis-panel { background:#fff; border:1.5px solid #2d7d4f; border-radius:10px; margin-bottom:22px; overflow:hidden; page-break-inside:avoid; }
-  .final-analysis-header { padding:14px 20px; background:#e6f5ed; border-bottom:1px solid rgba(45,125,79,0.15); display:flex; align-items:center; gap:10px; }
-  .final-analysis-header h2 { font-family:'Lora',serif; font-weight:700; font-size:15px; color:#2d7d4f; flex:1; }
-  .final-analysis-body { padding:16px 20px; font-size:13px; color:#1c1a17; line-height:1.75; }
-  .final-analysis-body p { margin-bottom:10px; }
-  .final-verdict { background:linear-gradient(135deg,#e6f5ed,#e8f2fa); border:1px solid rgba(45,125,79,0.2); border-radius:8px; padding:12px 16px; margin-top:14px; font-family:'Lora',serif; font-size:13px; font-style:italic; color:#1c1a17; line-height:1.7; }
-  .verdict-label { font-family:'DM Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.08em; color:#2d7d4f; font-style:normal; display:block; margin-bottom:5px; }
+  /* ── FINAL ANALYSIS ── */
+  .final-analysis-panel { border:1.5pt solid #2d7d4f; border-radius:6pt; margin-bottom:16pt; overflow:hidden; page-break-inside:avoid; }
+  .final-analysis-header { padding:10pt 14pt; background:#e6f5ed; border-bottom:1pt solid rgba(45,125,79,0.15); display:flex; align-items:center; gap:8pt; }
+  .final-analysis-header h2 { font-family:'Lora',serif; font-weight:700; font-size:12pt; color:#2d7d4f; flex:1; }
+  .final-analysis-body { padding:12pt 14pt; font-size:10pt; color:#1c1a17; line-height:1.7; }
+  .final-analysis-body p { margin-bottom:8pt; }
+  .final-verdict { background:#f0f8f3; border:1pt solid rgba(45,125,79,0.2); border-radius:5pt; padding:10pt 13pt; margin-top:10pt; font-family:'Lora',serif; font-size:10pt; font-style:italic; color:#1c1a17; line-height:1.65; }
+  .verdict-label { font-family:'DM Mono',monospace; font-size:8pt; text-transform:uppercase; letter-spacing:0.07em; color:#2d7d4f; font-style:normal; display:block; margin-bottom:4pt; }
 
-  .ingredient-card { background:#fff; border:1px solid #dddad2; border-radius:10px; margin-bottom:18px; overflow:hidden; page-break-inside:avoid; }
-  .card-header { padding:13px 18px; background:#f7f6f2; border-bottom:1px solid #dddad2; display:flex; align-items:center; gap:10px; }
-  .ing-number { width:24px; height:24px; border-radius:6px; background:#1a5c8f; color:#fff; font-family:'Lora',serif; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .ing-name { font-family:'Lora',serif; font-weight:700; font-size:16px; color:#1c1a17; }
-  .ing-dose-badge { font-family:'DM Mono',monospace; font-size:9.5px; padding:2px 8px; border-radius:4px; background:#fef7e8; color:#b7770d; border:1px solid rgba(183,119,13,0.2); }
-  .ing-status { margin-left:auto; font-family:'DM Mono',monospace; font-size:9.5px; padding:2px 9px; border-radius:12px; }
-  .ing-status.ok { background:#e6f5ed; color:#2d7d4f; border:1px solid rgba(45,125,79,0.2); }
-  .ing-status.warn { background:#fdf0ef; color:#c0392b; border:1px solid rgba(192,57,43,0.2); }
-  .card-sections { padding:2px 0; }
-  .section-block { border-bottom:1px solid #dddad2; }
+  /* ── INGREDIENT CARDS ── */
+  .ingredient-card { border:1pt solid #dddad2; border-radius:6pt; margin-bottom:14pt; overflow:hidden; page-break-inside:avoid; }
+  .card-header { padding:9pt 14pt; background:#f7f6f2; border-bottom:1pt solid #dddad2; display:flex; align-items:center; gap:8pt; }
+  .ing-number { width:20pt; height:20pt; border-radius:4pt; background:#1a5c8f; color:#fff; font-family:'Lora',serif; font-weight:700; font-size:9pt; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ing-name { font-family:'Lora',serif; font-weight:700; font-size:13pt; color:#1c1a17; }
+  .ing-dose-badge { font-family:'DM Mono',monospace; font-size:7.5pt; padding:1pt 6pt; border-radius:3pt; background:#fef7e8; color:#b7770d; border:0.75pt solid rgba(183,119,13,0.25); }
+  .ing-status { margin-left:auto; font-family:'DM Mono',monospace; font-size:7.5pt; padding:2pt 7pt; border-radius:10pt; }
+  .ing-status.ok { background:#e6f5ed; color:#2d7d4f; border:0.75pt solid rgba(45,125,79,0.25); }
+  .ing-status.warn { background:#fdf0ef; color:#c0392b; border:0.75pt solid rgba(192,57,43,0.25); }
+  .card-sections { padding:2pt 0; }
+  .section-block { border-bottom:1pt solid #dddad2; }
   .section-block:last-child { border-bottom:none; }
-  .section-trigger { padding:10px 18px; display:flex; align-items:center; gap:9px; }
-  .section-icon { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+  .section-trigger { padding:7pt 14pt; display:flex; align-items:center; gap:7pt; background:#fafaf8; }
+  .section-icon { width:20pt; height:20pt; border-radius:4pt; display:inline-flex; align-items:center; justify-content:center; font-size:10pt; flex-shrink:0; }
   .dose-icon { background:#e8f2fa; } .contra-icon { background:#fdf0ef; } .interact-icon { background:#fef7e8; } .ae-icon { background:#f0eef9; } .disease-icon { background:#e6f5ed; } .drug-icon { background:#fef7e8; }
-  .section-title { font-family:'DM Sans',sans-serif; font-weight:600; font-size:12px; color:#1c1a17; flex:1; }
-  .section-count { font-family:'DM Mono',monospace; font-size:9.5px; color:#9a9690; background:#f4f2ed; border:1px solid #dddad2; padding:1px 7px; border-radius:3px; }
+  .section-title { font-family:'DM Sans',sans-serif; font-weight:600; font-size:9.5pt; color:#1c1a17; flex:1; }
+  .section-count { font-family:'DM Mono',monospace; font-size:7.5pt; color:#9a9690; background:#f4f2ed; border:0.75pt solid #dddad2; padding:1pt 5pt; border-radius:2.5pt; }
+  .section-arrow { display:none; }
   .section-content { display:block !important; max-height:none !important; overflow:visible !important; }
-  .section-inner { padding:4px 18px 14px 50px; }
-  .data-row { margin-bottom:11px; }
-  .data-label { font-family:'DM Mono',monospace; font-size:9.5px; color:#9a9690; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px; }
-  .data-value { font-size:12.5px; color:#1c1a17; line-height:1.6; }
-  .data-link { display:inline-flex; align-items:center; gap:4px; background:#f4f2ed; border:1px solid #ccc9c0; border-radius:5px; padding:3px 8px; font-family:'DM Mono',monospace; font-size:9.5px; color:#1a5c8f; text-decoration:none; margin:3px 3px 0 0; word-break:break-all; }
-  .links-group { display:flex; flex-wrap:wrap; gap:3px; margin-top:5px; }
-  .warn-tag { display:inline-flex; align-items:center; gap:4px; background:#fdf0ef; border:1px solid rgba(192,57,43,0.2); border-radius:5px; padding:3px 8px; font-size:11px; color:#c0392b; margin:2px 2px 0 0; }
-  .interact-tag { display:inline-flex; align-items:center; gap:4px; background:#fef7e8; border:1px solid rgba(183,119,13,0.2); border-radius:5px; padding:3px 8px; font-size:11px; color:#b7770d; margin:2px 2px 0 0; }
-  .ae-tag { background:#f0eef9; border:1px solid rgba(108,92,186,0.2); border-radius:5px; padding:3px 8px; font-size:11px; color:#5b4fcf; display:inline-block; margin:2px 2px 0 0; }
-  .disease-block { background:linear-gradient(135deg,#e6f5ed,#e8f2fa); border:1px solid rgba(45,125,79,0.15); border-radius:8px; padding:12px 14px; margin-bottom:9px; }
-  .disease-block-title { font-family:'DM Sans',sans-serif; font-weight:600; font-size:11px; color:#2d7d4f; margin-bottom:7px; text-transform:uppercase; letter-spacing:0.05em; }
-  .pk-pd-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:9px; }
-  .pk-pd-cell { background:#fff; border-radius:6px; padding:9px 11px; border:1px solid #dddad2; }
-  .pk-pd-cell-label { font-family:'DM Mono',monospace; font-size:9.5px; color:#9a9690; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
-  .pk-pd-cell-value { font-size:12px; color:#5a5650; line-height:1.55; }
-  .evidence-level { display:inline-flex; align-items:center; gap:3px; font-family:'DM Mono',monospace; font-size:9.5px; padding:2px 7px; border-radius:3px; margin-left:7px; }
+  .section-inner { padding:4pt 14pt 10pt 42pt; }
+  .data-row { margin-bottom:8pt; }
+  .data-label { font-family:'DM Mono',monospace; font-size:7.5pt; color:#9a9690; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:2pt; }
+  .data-value { font-size:9.5pt; color:#1c1a17; line-height:1.55; }
+  .links-group { display:block; margin-top:4pt; }
+  .data-link { display:inline-block; font-family:'DM Mono',monospace; font-size:7.5pt; color:#1a5c8f; text-decoration:underline; margin:2pt 5pt 0 0; word-break:break-all; background:none; border:none; padding:0; }
+  .warn-tag { display:inline-flex; align-items:center; gap:3pt; background:#fdf0ef; border:0.75pt solid rgba(192,57,43,0.2); border-radius:4pt; padding:2pt 6pt; font-size:8.5pt; color:#c0392b; margin:2pt 2pt 0 0; }
+  .interact-tag { display:inline-flex; align-items:center; gap:3pt; background:#fef7e8; border:0.75pt solid rgba(183,119,13,0.2); border-radius:4pt; padding:2pt 6pt; font-size:8.5pt; color:#b7770d; margin:2pt 2pt 0 0; }
+  .ae-tag { background:#f0eef9; border:0.75pt solid rgba(108,92,186,0.2); border-radius:4pt; padding:2pt 6pt; font-size:8.5pt; color:#5b4fcf; display:inline-block; margin:2pt 2pt 0 0; }
+  .disease-block { background:#f0f8f3; border:0.75pt solid rgba(45,125,79,0.18); border-radius:5pt; padding:9pt 11pt; margin-bottom:7pt; }
+  .disease-block-title { font-family:'DM Sans',sans-serif; font-weight:600; font-size:8pt; color:#2d7d4f; margin-bottom:5pt; text-transform:uppercase; letter-spacing:0.05em; }
+  .pk-pd-grid { display:grid; grid-template-columns:1fr 1fr; gap:6pt; margin-top:7pt; }
+  .pk-pd-cell { background:#fff; border-radius:4pt; padding:7pt 9pt; border:0.75pt solid #dddad2; }
+  .pk-pd-cell-label { font-family:'DM Mono',monospace; font-size:7.5pt; color:#9a9690; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3pt; }
+  .pk-pd-cell-value { font-size:9pt; color:#5a5650; line-height:1.5; }
+  .evidence-level { display:inline-flex; align-items:center; font-family:'DM Mono',monospace; font-size:7.5pt; padding:1.5pt 6pt; border-radius:3pt; margin-left:5pt; }
   .ev-high { background:#e6f5ed; color:#2d7d4f; } .ev-moderate { background:#fef7e8; color:#b7770d; } .ev-low { background:#fdf0ef; color:#c0392b; }
 
-  .pdf-disclaimer { background:#fef7e8; border:1px solid rgba(183,119,13,0.2); border-radius:8px; padding:11px 15px; font-size:11px; color:#5a5650; margin-top:18px; line-height:1.65; }
+  /* ── DISCLAIMER ── */
+  .pdf-disclaimer { background:#fef7e8; border:0.75pt solid rgba(183,119,13,0.2); border-radius:5pt; padding:9pt 12pt; font-size:8.5pt; color:#5a5650; margin-top:14pt; line-height:1.6; }
   .pdf-disclaimer strong { color:#b7770d; }
+
   @media print {
-    body { padding:18px 22px; }
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .ingredient-card, .dose-summary-panel, .final-analysis-panel { page-break-inside:avoid; }
   }
 </style>
 </head>
 <body>
   <div class="pdf-header">
-    <div class="pdf-title">⚗️ ToxiQuery — Pharmacological Intelligence Report</div>
-    <div class="pdf-meta">Generated: ${ts} · AI-Powered Clinical Analysis · For Research/Educational Use Only</div>
+    <div>
+      <div class="pdf-title">⚗️ ToxiQuery — Pharmacological Intelligence Report</div>
+      <div class="pdf-meta" style="text-align:left;margin-top:3pt;">AI-Powered Clinical Analysis · For Research/Educational Use Only</div>
+    </div>
+    <div class="pdf-meta">Generated<br>${ts}</div>
   </div>
   ${dsSectionHTML}
   ${faSectionHTML}
-  <div style="font-family:'Lora',serif;font-weight:700;font-size:16px;color:#1a5c8f;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #dddad2;">
-    Detailed Ingredient Profiles
-  </div>
+  <div class="section-heading">Detailed Ingredient Profiles</div>
   ${cardsHTML}
   <div class="pdf-disclaimer">
-    <strong>⚠ Clinical Disclaimer:</strong> Data generated by this tool is AI-sourced for research/educational purposes only. Always verify against authoritative pharmacological databases (DrugBank, PubChem, FDA label, etc.). Not a substitute for professional clinical judgment. Links are suggested references — verify independently.
+    <strong>⚠ Clinical Disclaimer:</strong> Data generated by this tool is AI-sourced for research/educational purposes only. Always verify against authoritative pharmacological databases (DrugBank, PubChem, FDA label, etc.). Not a substitute for professional clinical judgment. Reference links point to official search pages — verify specific drug entries independently.
   </div>
 </body>
 </html>`;
